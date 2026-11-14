@@ -2,7 +2,7 @@ import type { Component } from 'svelte';
 import type { PublicRound } from '../../shared/protocol';
 import { analyze as analyzePusoy, type PusoyInput, type PusoySetup } from '../../games/pusoy';
 import { deuceMultiplier, type PusoyDosInput, type PusoyDosSetup, type Tier } from '../../games/pusoy-dos';
-import { analyze as analyzePoker, type PokerInput, type PokerSetup } from '../../games/poker';
+import type { PokerInput, PokerSetup } from '../../games/poker';
 import type { TongItsInput, TongItsSetup } from '../../games/tong-its';
 import type { PkView } from '../../games/poker/engine';
 import type { PsView } from '../../games/pusoy/engine';
@@ -236,13 +236,12 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
     describe(round, _setup, nameOf, t) {
       const input = round.input as PokerInput;
       const players = Object.keys(round.delta);
-      const a = analyzePoker(players, input);
       const top = players.reduce((x, y) => ((round.delta[y] ?? 0) > (round.delta[x] ?? 0) ? y : x), players[0] ?? '');
-      const bits = [t('poker.inLine', { n: a.chipsIn.toLocaleString('en-US') })];
-      const rebuys = players.reduce((n, id) => n + Math.max(0, (input.buyIns[id]?.length ?? 1) - 1), 0);
-      if (rebuys > 0) bits.push(t('poker.rebuysLine', { n: rebuys }));
+      const bits: string[] = [];
       if (top && (round.delta[top] ?? 0) > 0) bits.push(t('poker.topLine', { name: nameOf(top) }));
-      if (input.adjustTo) bits.push(t('poker.adjustLine', { name: nameOf(input.adjustTo), n: Math.abs(a.difference).toLocaleString('en-US') }));
+      const rebuys = players.filter((id) => (input.buyIns[id]?.length ?? 1) > 1);
+      if (rebuys.length > 0) bits.push(t('poker.rebuyLine', { names: rebuys.map(nameOf).join(', ') }));
+      if (bits.length === 0) bits.push(t('poker.evenLine'));
       return bits.join(' \u00b7 ');
     },
     banners(round, _setup, nameOf, t) {
@@ -250,7 +249,6 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
       const top = players.reduce((x, y) => ((round.delta[y] ?? 0) > (round.delta[x] ?? 0) ? y : x), players[0] ?? '');
       const out: { text: string; tone: 'win' | 'bad' | 'info' }[] = [];
       if (top && (round.delta[top] ?? 0) > 0) out.push({ text: t('banner.wins', { name: nameOf(top) }), tone: 'win' });
-      if ((round.input as PokerInput).adjustTo) out.push({ text: t('banner.adjusted'), tone: 'info' });
       return out;
     },
     winnerOf(round) {

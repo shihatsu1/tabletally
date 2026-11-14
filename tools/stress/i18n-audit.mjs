@@ -13,7 +13,8 @@ const en = keysOf(section('en'));
 const tl = keysOf(section('tl'));
 const dupes = (s) => { const seen = new Set(); const d = []; for (const m of s.matchAll(/^\s*'([^']+)':/gm)) { if (seen.has(m[1])) d.push(m[1]); seen.add(m[1]); } return d; };
 const problems = [];
-for (const k of en) if (!tl.has(k)) problems.push(`missing in Filipino: ${k}`);
+// `<key>.one` is the English singular (t() picks it when n is 1); Filipino nouns do not change, so it needs none.
+for (const k of en) if (!tl.has(k) && !k.endsWith('.one')) problems.push(`missing in Filipino: ${k}`);
 for (const k of tl) if (!en.has(k)) problems.push(`only in Filipino: ${k}`);
 for (const k of dupes(section('en'))) problems.push(`duplicate English key: ${k}`);
 for (const k of dupes(section('tl'))) problems.push(`duplicate Filipino key: ${k}`);
@@ -23,9 +24,12 @@ const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f); if
 walk('src/web');
 const used = new Set();
 const dynamic = [];
-for (const f of files) {
+for (const f of files.filter((x) => !x.endsWith('i18n.svelte.ts'))) {
   const text = readFileSync(f, 'utf8');
   for (const m of text.matchAll(/\bt\(\s*'([^']+)'/g)) used.add(m[1]);
+  // Keys picked inside an expression (t(cond ? 'a' : 'b')) or passed around as data (stake: { label: 'play.stake' })
+  // are still uses: count any quoted string that is exactly a defined key.
+  for (const m of text.matchAll(/'([a-z][\w-]*(?:\.[\w-]+)+)'/gi)) if (en.has(m[1])) used.add(m[1]);
   for (const m of text.matchAll(/\bt\(\s*`([^`]+)`/g)) {
     if (m[1].includes('${')) dynamic.push({ file: f, template: m[1] });
     else used.add(m[1]);
@@ -39,6 +43,6 @@ for (const d of dynamic) {
   families.set(prefix, (families.get(prefix) ?? 0) + 1);
   if (![...en].some((k) => k.startsWith(prefix))) problems.push(`dynamic key family has no definitions: ${prefix}* (${d.file})`);
 }
-const unused = [...en].filter((k) => !used.has(k) && ![...families.keys()].some((p) => k.startsWith(p)));
-console.log(JSON.stringify({ english: en.size, filipino: tl.size, usedKeys: used.size, dynamicFamilies: [...families.keys()], unusedCount: unused.length, problems }, null, 1));
+const unused = [...en].filter((k) => !used.has(k) && !(k.endsWith('.one') && used.has(k.slice(0, -4))) && ![...families.keys()].some((p) => k.startsWith(p)));
+console.log(JSON.stringify({ english: en.size, filipino: tl.size, usedKeys: used.size, dynamicFamilies: [...families.keys()], unusedCount: unused.length, unused, problems }, null, 1));
 process.exit(problems.length ? 1 : 0);

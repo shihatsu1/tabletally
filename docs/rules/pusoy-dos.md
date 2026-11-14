@@ -1,56 +1,35 @@
 # Pusoy Dos (Filipino Big Two)
 
-Status: research draft for review. Items marked **[UNVERIFIED]** rest on one source or conflicting sources.
-
-TableTally is a score tracker. This file covers only what the app must know: player counts, how a round ends, and how each scoring system turns a result into points.
-
-## Sources
-
-- [S1] Pagat, "Big Two": <https://www.pagat.com/climbing/bigtwo.html>
-- [S2] Wikipedia, "Big two" / "Pusoy Dos": <https://en.wikipedia.org/wiki/Pusoy_Dos>
-- [S3] CardRules+, "How to Play Pusoy Dos": <https://cardrulesplus.com/games/pusoy-dos/>
-- [S4] PlayFaceToFace, "Pusoy Dos guide": <https://www.playfacetoface.com/pusoydos/guide> (a platform's own ruleset, not a Philippine standard)
-
-No Filipino-language or Philippine-published source was found in this pass. Philippine claims below rest on S3 and S4, which agree with each other. A native-speaker check by the maintainer is needed.
+How TableTally plays and scores Pusoy Dos. The app deals, checks every play and records each hand; this page is the reference for what it does. Choices we made where sources disagree are marked **house choice**, and questions still open are listed at the end.
 
 ## Players and deal
 
-| Players | Deal | Source |
-|---|---|---|
-| 4 (standard) | 13 cards each, all 52 dealt | S1, S2, S3 |
-| 3 | **Conflict.** International: 17 each, last card face up in the centre, taken by the holder of the lowest card [S1]. Philippine: remove one suit (usually diamonds), 13 each [S3] **[UNVERIFIED]** | S1, S3 |
-| 2 | Varies: 17 each (18 set aside), 21 each (10 unused), or 13 each (26 unused) [S1]. S3 and S4 give no 2-player deal | S1 |
+- 2 to 4 players, one 52-card deck, no jokers. 13 cards each by default.
+- Three players may choose 17 cards each (the deck covers 3 x 17 = 51). A hand size the deck cannot cover for everyone is refused, so 17 is not offered for four players.
+- With fewer than four players the cards that are not dealt stay out of the hand.
 
-**Why it matters to scoring:** the cards-left penalty tiers are relative to the starting hand size. The app stores a `startingHandSize` per player count, defaults 13/13/17 by source, and the host can override it.
+## Cards and plays
 
-## Cards and play (reference only)
+- Ranks low to high: 3 4 5 6 7 8 9 10 J Q K A 2.
+- Suits low to high: clubs, spades, hearts, diamonds (the Philippine order [S3, S4]; international Big Two differs [S1]).
+- Plays: a single, a pair, a triple, or five cards. Five-card hands rank straight < flush < full house < four of a kind plus one card < straight flush.
+- A play must be the same size as the one on the table and higher. Equal ranks are decided by suit; a pair by its higher card.
+- Straights are five ranks in a row without wrapping, and J-Q-K-A-2 counts. **House choice:** flushes compare card by card from the highest, full houses by the triple, four of a kind by the four.
+- **House choice:** the holder of the lowest card dealt (normally the 3 of clubs) leads every hand, and that first play must contain it. Some tables let the previous winner lead.
+- You may pass unless you are leading. **House choice:** after passing you are out of that trick. When everyone else has passed, the player of the last play leads again (or the next player in seat order if they have gone out).
+- The first player out wins the hand. In "play until one remains" play continues until one player is left.
 
-- Rank low to high: 3 4 5 6 7 8 9 10 J Q K A 2.
-- **Philippine suit order, high to low: diamonds, hearts, spades, clubs** [S3, S4]. International Big Two uses spades, hearts, clubs, diamonds [S1], and some tables use it, so the host should confirm.
-- **Philippine opening card: 3 of clubs** must be in the first play of the match [S3, S4]. International play opens with the 3 of diamonds [S1].
-- Plays: single, pair, triple, or five-card poker hand (straight, flush, full house, four of a kind plus a card, straight flush). A play can only be beaten by the same shape. Three passes clear the table.
-- Five-card hand details (A-2-3-4-5 ranking, flush ordering) differ between sources and do not affect scoring. Not covered here.
+## Scoring
 
-## How a round ends
+Every amount is a whole number, and each hand sums to zero. The stake is set by the host when dealing and can change from hand to hand.
 
-The first player to empty their hand wins the round. The others cannot beat the final play [S1]. The winner leads the next round [S3, S4].
+### Winner takes all (default)
 
-Round input the app needs: **winner**. Optional, depending on the scoring system: cards left per other player, and how many 2s were in the winner's final play.
+Each loser pays the stake to the winner: winner `+stake x (players - 1)`, each loser `-stake`. Cards left do not matter. This is how the maintainer's group plays.
 
-## Scoring systems
+Example, 4 players, stake 50, A wins: **A +150, B -50, C -50, D -50.** (`test/pusoy-dos.test.ts`)
 
-All amounts are integers. `stake` is the host's integer unit (points or minor currency units) and can change between rounds. Net amounts always sum to zero.
-
-### 1. Winner-take-all (fixed stake per loser)
-
-Each loser pays `stake` to the winner. Cards left are irrelevant.
-
-- Winner: `+stake * (n - 1)`. Each loser: `-stake`.
-- Not described in S1 to S4. It is the system in the project's real-game test case (anonymized), so it is a required system. **[UNVERIFIED as a documented convention]**
-
-Worked example, 4 players, stake 50, A wins: A +150, B -50, C -50, D -50.
-
-**Regression test (from a real game, anonymized):** players A, B, C, D, 15 rounds with the winners in order.
+**Canonical session** (a real game, anonymised; it is the project's regression test): players A, B, C, D, 15 hands with these winners.
 
 | Stake | Winners |
 |---|---|
@@ -58,127 +37,77 @@ Worked example, 4 players, stake 50, A wins: A +150, B -50, C -50, D -50.
 | 200 | D, D, B, C, B, C, A, D |
 | 300 | A, C |
 
-Net for player `i` = `sum(stake * (n * wins_at_stake - rounds_at_stake))` over stakes. Total stakes `50*5 + 200*8 + 300*2 = 2450`.
+A player's total is `sum over stakes of stake x (4 x wins - hands)`. The stakes add to 50 x 5 + 200 x 8 + 300 x 2 = 2450.
 
-| Player | Stake-weighted wins | Net |
+| Player | Stake-weighted wins | Total |
 |---|---|---|
-| A | 50 + 200 + 300 = 550 | 4 * 550 - 2450 = **-250** |
-| B | 100 + 400 = 500 | 4 * 500 - 2450 = **-450** |
-| C | 50 + 400 + 300 = 750 | 4 * 750 - 2450 = **+550** |
-| D | 50 + 600 = 650 | 4 * 650 - 2450 = **+150** |
+| A | 50 + 200 + 300 = 550 | 4 x 550 - 2450 = **-250** |
+| B | 100 + 400 = 500 | **-450** |
+| C | 50 + 400 + 300 = 750 | **+550** |
+| D | 50 + 600 = 650 | **+150** |
 
-Sum = 0. Expected settlement (3 payments): **B pays C 450; A pays C 100; A pays D 150.** This matches the target in the project brief; the arithmetic was checked by hand here and will become the first unit test.
+Checked in `test/ledger.test.ts`, `test/pusoy-dos.test.ts` and `test/room.test.ts`.
 
-### 2. Cards-left penalty (per-card, with tiers)
+### Penalties for cards left (optional)
 
-The winner scores 0. Each other player scores a penalty based on cards left [S1]:
+The winner scores 0 and each other player is charged per card still held [S1, S3]:
 
-| Cards left (13-card hand) | Penalty per card | Source |
+| Cards left (13-card hand) | Per card |
+|---|---|
+| 1 to 9 | 1 |
+| 10 to 12 | 2 |
+| 13 (never played a card) | 3 |
+
+Presets: **standard** (above), **tiered-8** (1 / 2 from 8 / 3 from 10 / 4 at 13) and **flat** (1 per card). With 17-card hands the top tier still means "never played a card": 13 to 16 cards pay the 10+ rate, and only 17 pays the top rate. (`test/pusoy-dos.test.ts`, "17-card hands")
+
+Two ways to settle the penalties:
+
+- **Winner-only:** the winner collects every loser's penalty.
+- **Pairwise:** every pair settles the difference between their penalties.
+
+Example, stake 1, A wins, B holds 5, C 10, D 13. Penalties: B 5, C 20, D 39.
+
+| Player | Winner-only | Pairwise |
 |---|---|---|
-| 1 to 9 | 1 | S1 (basic game), S3 |
-| 10, 11, 12 | 2 (doubled) | S1, S3 |
-| 13 | 3 (tripled, 39 points) | S1, S3 ("hindi nakatira") |
+| A | +64 | +64 |
+| B | -5 | +44 |
+| C | -20 | -16 |
+| D | -39 | -92 |
 
-Variations from S1, each a host option:
-- Tiers: double at 8 or 9, triple at 10 to 12, quadruple at 13.
-- Stacked doubling: double at 8+, double again at 10+, and so on.
-- No tiers: 1 point per card.
-- Doubling only for the player who led the first card (S1, "starter-only").
-- Extra penalties for holding the 2 of diamonds (-1) or all four 2s (-4) at round end [S3 only] **[UNVERIFIED]**.
+(`test/pusoy-dos.test.ts`)
 
-**How penalties become money.** Two settlement modes, both from [S1] and [S3]:
-- **Winner-only:** the winner collects each loser's penalty. Losers do not pay each other.
-- **Pairwise:** every pair settles the difference in their penalties.
+### 2s in the winning play (optional)
 
-Worked example, 4 players, stake 1 per point, A wins; B has 5 cards left, C has 10, D has 13.
-Penalties: B 5, C 10 * 2 = 20, D 13 * 3 = 39. A 0.
+Multiplies the payment when the winner's last play contains 2s: **x2 per 2** (2, 4, 8, 16 for one to four 2s) or **x2 once**. Example, winner takes all, stake 50, A goes out with a pair of 2s: x4, so each loser pays 200 and **A +600**. (`test/pusoy-dos.test.ts`)
 
-| Player | Winner-only | Pairwise (`sum_s - n * s_i`, sum_s = 64) |
-|---|---|---|
-| A (0) | +64 | 64 - 0 = +64 |
-| B (5) | -5 | 64 - 20 = +44 |
-| C (20) | -20 | 64 - 80 = -16 |
-| D (39) | -39 | 64 - 156 = -92 |
-| Sum | 0 | 0 |
+### Play until one remains (optional)
 
-Note the winner-only table has B losing 5 while pairwise has B gaining 44. They are different systems and the host must choose one.
+Play continues after the first player goes out, and the finishing order earns points: 5 / 3 / 1 / 0 for four players [S1]. **House choice:** 3 / 1 / 0 for three and 1 / 0 for two; the host can change them. Pairwise: `net = stake x (players x points - total points)`.
 
-### 3. Deuce multiplier on the winner's final play
+Example, order A, B, C, D, stake 10, points total 9: **A +110, B +30, C -50, D -90.** (`test/pusoy-dos.test.ts`)
 
-Applies on top of system 1 or 2.
+## Turn time and computer players
 
-- S1 (Pusoy Dos entry): if the winner's last play contains 2s, the winner scores 2 for one 2, 4 for two, 8 for three, 16 for four. As a multiplier: `2^k` for `k` 2s in the final play, `k` from 1 to 4.
-- S1 (separate variation): all-2s final play doubles the others' penalties.
-- S2: doubles if the winner's last play is a 2, a four of a kind, or a straight flush.
+- The host can set a time per turn when dealing. When it runs out, a safe move is played: a pass, or the lowest card when leading.
+- Easy plays a random legal move and passes about 3 times in 10 when it could play. Normal keeps sets together, saves its 2s and makes a random move about 1 time in 4. Hard plans its hand into the fewest plays, counts the cards already played and blocks a player who is one card from going out.
+- Measured over many hands: Hard wins about 32% against three Normals (25% would be even), and Normal about 61% against three Easys.
+- Computers see only their own cards and the table.
 
-The exact Philippine convention is **[UNVERIFIED]**. The app makes it a host option: multiplier mode `off`, `x2^k`, or `x2 once`, plus an optional list of extra doubling hands.
+## Not built
 
-Worked example, winner-take-all, stake 50, 4 players, A wins with a pair of 2s as final play: `k = 2`, multiplier 4, each loser pays 200, A +600, others -200.
+Stacked doubling, doubling only for the starting player, extra penalties for holding the 2 of diamonds or all four 2s (one source only [S3]), and editing tiers card by card (presets only).
 
-### 4. Play-until-one-remains (placement points)
+## Open questions
 
-Play continues after the first player goes out. Finishing order scores **5, 3, 1, 0** for 1st to 4th in 4 players [S1, "play-until-one-remains version"]. S1 does not say how the points settle, and the 3-player and 2-player point tables are not given. **[UNVERIFIED]** The app will let the host edit the table per player count.
+1. Three players in the Philippines: 17 cards each, or remove a suit and deal 13? [S1, S3 disagree]
+2. Does the 2s multiplier double per 2, or only once?
+3. Who leads the next hand: the 3 of clubs, or the previous winner?
 
-Pairwise settlement: net for player `i` = `stake * (n * p_i - sum_p)`.
-Worked example: order A, B, C, D gives points 5, 3, 1, 0 and sum 9. Stake 10: A `10 * (20 - 9) = +110`, B `+30`, C `-50`, D `-90`. Sum 0.
+## Sources
 
-### 5. Generic pairwise settlement
+- [S1] Pagat, "Big Two": <https://www.pagat.com/climbing/bigtwo.html>
+- [S2] Wikipedia, "Big two": <https://en.wikipedia.org/wiki/Big_two>
+- [S3] CardRules+, "How to Play Pusoy Dos": <https://cardrulesplus.com/games/pusoy-dos/>
+- [S4] PlayFaceToFace, "Pusoy Dos guide": <https://www.playfacetoface.com/pusoydos/guide> (one platform's own rules)
 
-Systems 2 and 4 use the pairwise form. For score vector `s`, net_i = `stake * sum_j (s_j - s_i)` where lower is better (penalties), or `(s_i - s_j)` where higher is better (placement points).
-
-## Input screen proposal (phone)
-
-1. Tap the winner. In winner-take-all mode the round is saved.
-2. Cards-left mode: after the winner, a stepper row per loser (default = starting hand size minus 0, tap to adjust). Penalty shown live.
-3. Deuce option: chip row `0 1 2 3 4` for the number of 2s in the final play.
-4. Stake shown at the top; tap to change for the next round.
-
-## Implementation status (build step 3)
-
-Implemented in `src/games/pusoy-dos/index.ts` and tested in `test/pusoy-dos.test.ts` against every worked example above, at 2, 3 and 4 players:
-
-- Scoring systems 1 to 4 as host options: winner-take-all, cards-left (tier presets: standard, tiered-8, flat; winner-only or pairwise settlement), and play-until-one-remains placement with editable points.
-- Deuce multiplier as `off`, `pow2` (2, 4, 8, 16) or `double-once`.
-- The real 15-round game replays through the real module and gives C +550, D +150, A -250, B -450 and the three expected payments.
-- The default is winner-take-all, with the deuce multiplier off (the user's group plays winner takes all with 13 cards each). The penalties for cards left are an optional scoring system, chosen **when the table is created** (the create-table form shows the options) or on the table screen before the first round. Options lock once the first round is saved.
-
-Defaults chosen where the sources conflict, all changeable by the host: 13 cards dealt for every player count (17 is an option), winner-only settlement, placement points 5/3/1/0 for four players and 3/1/0 and 1/0 as unverified starting values for three and two players.
-
-Not implemented: stacked doubling, starter-only doubling, the 2-of-diamonds and four-2s extras (single source), Taiwan fixed payments, custom tier editing (presets only).
-
-## Open questions for the maintainer
-
-1. Philippine 3-player deal (remove a suit vs 17 cards)? 
-2. Is the deuce multiplier `2^k` as in S1, or only a single x2?
-3. Is the pairwise or the winner-only penalty settlement the norm in your group?
-4. Is "winner-take-all" in your group always `stake` from every loser? (The regression case assumes yes.)
-
-
-## How other apps and sites score it (checked 2026-11-13)
-
-No page found documents Tongits Go's own Pusoy Dos, so nothing could be copied from it. Other apps and guides agree on the shape: the first player out wins and everyone else is charged for cards left.
-
-- Flat 1 point per card left, doubled at 10-12 cards, tripled at 13 cards (the player never played). Two guides give this, and it is the `standard` tier preset already in the app.
-- A band style (low penalty for 1-3 cards, moderate 4-6, heavy 7+, a "burn" at 13) with no numbers published. The `tiered-8` and `flat` presets, or editing the tiers, cover it.
-- One strategy guide adds an extra 4 points for holding all four 2s at the end. It is called a house rule and one source only, so it is not built.
-- At least one app lets the table switch card penalties on or off, which matches the app's winner-take-all (no penalties) versus cards-left choice.
-- Money games settle a fixed peso amount per point after each hand. The app never settles money.
-- Suit order and the 2s disagree between sources, so the helper and rules follow the Philippine order and the host confirms.
-
-Sources: [CardRules+](https://cardrulesplus.com/games/pusoy-dos/), [Okbet guide](https://games.okbet.com/how-to-play-pusoy-dos-rules-ranking-online/), [PlayFaceToFace](https://www.playfacetoface.com/pusoydos/guide), and a Philippine App Store listing for a Pusoy Dos app.
-
-
-## Digital play (in the app)
-
-Used when a table is created with "Play in the app". The app shuffles, deals and enforces these rules; the scoring options above (winner takes all, penalties for cards left, play until one remains, deuce multiplier) apply unchanged and the result goes through the same scorer.
-
-- Ranks low to high 3 4 5 6 7 8 9 10 J Q K A 2. Suits low to high clubs, spades, hearts, diamonds.
-- Each player is dealt the "cards dealt" option (13 by default, 17 offered for cards-left), fewer when the deck cannot cover the table.
-- **[UNVERIFIED choice]** The holder of the lowest dealt card (normally the 3 of clubs) leads every hand, and the first play must contain that card. Some tables let the previous winner lead instead.
-- Plays: single, pair, triple, or five cards (straight < flush < full house < four of a kind plus one < straight flush). Same size as the lead, and higher. Equal ranks are broken by suit (pairs by the higher card). Straights use five ranks in a row without wrapping; J-Q-K-A-2 counts.
-- **[UNVERIFIED choice]** Flushes compare card by card from the highest; full houses by the triple; four of a kind by the four.
-- You may pass unless you are leading. **[UNVERIFIED choice]** After passing you are out of that trick. When everyone else has passed, the player of the last play leads again (the next player in seat order if they went out).
-- The first player out wins the hand (all scoring systems except "play until one remains", which goes on until one player is left).
-- The deuce multiplier counts the 2s in the winner's final play.
-- Turn limit: optional, chosen when the host deals. When it runs out, a safe move is played for the player (a pass, or the lowest card when leading).
-- Computers: Easy plays a random legal move (passes about 3 times in 10 when it can). Normal keeps sets together, saves 2s and is a little careless (about 1 move in 4 is random). Hard plans its hand into the fewest plays, counts the cards already played, and blocks a player who is one card from going out. Computers see only their own cards and what is on the table.
+No Philippine-published rulebook was found. S3 and S4 agree on the Philippine suit order and the 3-of-clubs opening.
