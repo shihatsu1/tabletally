@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { animate } from 'motion';
   import { reducedMotion } from '../lib/effects.svelte';
   import { fmt } from '../lib/format';
 
@@ -20,14 +19,17 @@
       shown = target;
       return;
     }
-    const controls = animate(from, target, {
-      duration: 0.7,
-      ease: 'easeOut',
-      onUpdate: (v) => (shown = Math.round(v)),
-      onComplete: () => (shown = target),
+    // Count up with an ease-out curve. Only the display is rounded; the real value is never touched.
+    const DURATION_MS = 700;
+    const start = performance.now();
+    let frame = requestAnimationFrame(function step(now) {
+      const p = Math.min(1, (now - start) / DURATION_MS);
+      const eased = 1 - (1 - p) ** 3;
+      shown = p < 1 ? Math.round(from + (target - from) * eased) : target;
+      if (p < 1) frame = requestAnimationFrame(step);
     });
     return () => {
-      controls.stop();
+      cancelAnimationFrame(frame);
       shown = target;
     };
   });

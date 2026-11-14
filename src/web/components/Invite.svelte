@@ -1,5 +1,4 @@
 <script lang="ts">
-  import QRCode from 'qrcode';
   import { t } from '../lib/i18n.svelte';
 
   let { code, seated, total }: { code: string; seated: number; total: number } = $props();
@@ -10,7 +9,9 @@
 
   $effect(() => {
     let live = true;
-    QRCode.toString(link, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0b3b2e', light: '#f3e9d2' } })
+    // The QR library is only needed by the host's invite card, so it loads on demand.
+    import('qrcode')
+      .then((QRCode) => QRCode.toString(link, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0b3b2e', light: '#f3e9d2' } }))
       .then((s) => live && (svg = s))
       .catch((e) => {
         if (import.meta.env.DEV) console.warn('QR failed', e);
