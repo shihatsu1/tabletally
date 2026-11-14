@@ -1,6 +1,6 @@
 import { LedgerError, replay, type LedgerEvent } from '../core/ledger';
 import { BOT_LEVELS, type BotLevel } from '../core/play';
-import { mixSeed } from '../core/rng';
+import { mixSeed, type Rng } from '../core/rng';
 import { getGame } from '../games';
 import { getEngine } from '../games/engines';
 import {
@@ -224,8 +224,10 @@ export function applyMessage(
   actor: Actor,
   msg: ClientMessage,
   now: number,
-  /** Fresh randomness for dealing (the Worker draws it from crypto). Tests pass a fixed number. */
+  /** Seed for the computer players' choices this hand (the Worker draws it from crypto). Tests pass a fixed number. */
   seed = 1,
+  /** The source the cards are shuffled with: the Worker passes a cryptographic one; tests leave it out (seeded). */
+  dealRng?: Rng,
 ): Result<RoomState> {
   const hostOnly = (): Result<never> | null =>
     actor.isHost ? null : fail('not_host', 'Only the host can do that.');
@@ -291,7 +293,7 @@ export function applyMessage(
     case 'deal': {
       const denied = hostOnly();
       if (denied) return denied;
-      return deal(s, msg.stake, msg.turnSeconds, now, seed);
+      return deal(s, msg.stake, msg.turnSeconds, now, seed, dealRng);
     }
     case 'move': {
       if (!actor.playerId) return fail('not_seated', 'Sit down to play.');
@@ -423,7 +425,7 @@ export function wakeAt(s: RoomState): number {
   return t;
 }
 
-function deal(s: RoomState, stake: number, turnSeconds: number, now: number, seed: number): Result<RoomState> {
+function deal(s: RoomState, stake: number, turnSeconds: number, now: number, seed: number, dealRng?: Rng): Result<RoomState> {
   const engine = getEngine(s.gameId);
   if (!engine) return fail('no_engine', 'This game cannot be played in the app.');
   if (s.players.length !== s.playerCount) return fail('table_not_full', `Waiting for ${s.playerCount - s.players.length} more player(s).`);
@@ -433,7 +435,7 @@ function deal(s: RoomState, stake: number, turnSeconds: number, now: number, see
   if (!Number.isSafeInteger(turnSeconds) || turnSeconds < 0 || turnSeconds > MAX_TURN_SECONDS) return fail('bad_turn_time', 'Turn time must be 0 to 300 seconds.');
   let state: unknown;
   try {
-    state = engine.start(s.setup, s.players.map((pl) => pl.id), seed, s.play?.state ?? null);
+    state = engine.start(s.setup, s.players.map((pl) => pl.id), dealRng ?? seed, s.play?.state ?? null);
   } catch {
     return fail('bad_setup', 'The game options cannot be dealt.');
   }

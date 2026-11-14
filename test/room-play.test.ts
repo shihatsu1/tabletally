@@ -527,3 +527,22 @@ describe('Poker in the app', () => {
     expect(back.ok ? '' : back.code).toBe('linked_hands');
   });
 });
+
+describe('dealing randomness (audit S05)', () => {
+  it('a deal can use any random source; the same source gives the same deal, a different one does not', async () => {
+    const { cryptoRng, makeRng, randInt } = await import('../src/core/rng');
+    const s = make();
+    const handOf = (r: ReturnType<typeof applyMessage>) => (playEnvelope(ok(r), 'p1')!.view as PdView).hand.join(',');
+    const a = handOf(applyMessage(s, host(s), { t: 'deal', stake: 5, turnSeconds: 0 }, T0, 1, makeRng(42)));
+    const b = handOf(applyMessage(s, host(s), { t: 'deal', stake: 5, turnSeconds: 0 }, T0, 1, makeRng(42)));
+    expect(a).toBe(b);
+    const hands = new Set(Array.from({ length: 5 }, () => handOf(applyMessage(s, host(s), { t: 'deal', stake: 5, turnSeconds: 0 }, T0, 1, cryptoRng()))));
+    expect(hands.size).toBe(5);
+    // randInt never returns out of range, even for sizes that do not divide 2^32
+    const r = cryptoRng();
+    for (let i = 0; i < 2000; i++) {
+      const n = randInt(r, 52);
+      expect(n >= 0 && n < 52 && Number.isInteger(n)).toBe(true);
+    }
+  });
+});

@@ -1,3 +1,4 @@
+import type { Rng } from './rng';
 /**
  * The contract for digital play (the server deals and runs the turns). A game opts in by exporting a
  * PlayEngine and registering it in src/games/engines.ts. The core never imports a specific engine.
@@ -16,7 +17,8 @@ export const BOT_LEVELS: readonly BotLevel[] = ['easy', 'normal', 'hard'];
 export interface PlayEngine<Setup = any, State = any, Move = any, View = any> { // eslint-disable-line @typescript-eslint/no-explicit-any
   /** Shuffle and deal. `players` is the seat order. `prev` is the previous hand's final state, for games whose
    *  hands are linked (poker stacks and the dealer button carry over); null for the first hand. */
-  start(setup: Setup, players: readonly string[], seed: number, prev?: State | null): State;
+  /** `seed` is a number in tests (replayable) or the server's cryptographic source when dealing for real. */
+  start(setup: Setup, players: readonly string[], seed: number | Rng, prev?: State | null): State;
   /** Player counts allowed when playing in the app (defaults to the game's own list). */
   playerCounts?: readonly number[];
   /** True when hands depend on each other (poker stacks carry over), so undoing or editing a past hand is not allowed. */

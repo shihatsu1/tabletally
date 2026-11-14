@@ -13,7 +13,7 @@
  *   one player is left.
  */
 import type { BotLevel, PlayEngine } from '../../core/play';
-import { makeRng, shuffle } from '../../core/rng';
+import { makeRng, rngFrom, shuffle, type Rng } from '../../core/rng';
 import type { Card } from '../cards';
 import { rankOf } from '../cards';
 import { cardPower, organize, rankPower, sortHand, type PlayKind } from './hand';
@@ -145,8 +145,8 @@ export interface PdView {
 
 const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
 
-function start(setup: PusoyDosSetup, players: readonly string[], seed: number): PdState {
-  const rng = makeRng(seed);
+function start(setup: PusoyDosSetup, players: readonly string[], seed: number | Rng): PdState {
+  const rng = rngFrom(seed);
   const deck = shuffle(Array.from({ length: 52 }, (_, i) => i), rng);
   const size = Math.min(setup.startingHand, Math.floor(52 / players.length));
   const hands: Record<string, Card[]> = {};

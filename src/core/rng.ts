@@ -1,10 +1,28 @@
 /**
- * Small seeded random source (mulberry32). Integer only: it yields unsigned 32-bit integers, and the
- * helpers turn them into whole-number choices. Used for shuffling and bot choices in digital play, never
- * for scoring. The Worker draws the seed from crypto.getRandomValues; tests pass fixed seeds, so every
- * game can be replayed exactly.
+ * Random sources for digital play. Integer only: each yields unsigned 32-bit integers, and the helpers turn
+ * them into whole-number choices. Never used for scoring.
+ *
+ * - The server deals with `cryptoRng()` (crypto.getRandomValues), so a deal cannot be worked out from the
+ *   cards a player can see.
+ * - Tests, and the computer players' choices, use `makeRng(seed)` (mulberry32), so a game can be replayed.
  */
 export type Rng = () => number;
+
+/** A cryptographically strong source: 32 random bits per call, drawn in batches. */
+export function cryptoRng(): Rng {
+  const buf = new Uint32Array(64);
+  let i = buf.length;
+  return () => {
+    if (i >= buf.length) {
+      crypto.getRandomValues(buf);
+      i = 0;
+    }
+    return buf[i++] as number;
+  };
+}
+
+/** Engines accept either a seed (replayable) or a ready source (the server's crypto one). */
+export const rngFrom = (seed: number | Rng): Rng => (typeof seed === 'function' ? seed : makeRng(seed));
 
 export function makeRng(seed: number): Rng {
   let a = seed >>> 0;
@@ -17,8 +35,16 @@ export function makeRng(seed: number): Rng {
   };
 }
 
-/** A whole number from 0 to n - 1. */
-export const randInt = (rng: Rng, n: number): number => rng() % n;
+const TWO_32 = 0x1_0000_0000;
+
+/** A whole number from 0 to n - 1, without modulo bias (draws that would favour small numbers are redrawn). */
+export function randInt(rng: Rng, n: number): number {
+  const limit = TWO_32 - (TWO_32 % n);
+  for (;;) {
+    const x = rng();
+    if (x < limit) return x % n;
+  }
+}
 
 /** Fisher-Yates. Returns a new array. */
 export function shuffle<T>(items: readonly T[], rng: Rng): T[] {

@@ -14,7 +14,7 @@
  *   cards: three of a kind > pair > high card.
  */
 import type { BotLevel, PlayEngine } from '../../core/play';
-import { makeRng, shuffle, type Rng } from '../../core/rng';
+import { makeRng, rngFrom, shuffle, type Rng } from '../../core/rng';
 import type { Card } from '../cards';
 import { rankOf, suitOf } from '../cards';
 import type { Detail, NaturalKey, PlayerRoyalties, PusoyInput, PusoySetup, Ranking, RowKey } from './index';
@@ -206,8 +206,8 @@ export interface PsView {
 
 const pendingOf = (s: PsState): string[] => s.players.filter((id) => s.sets[id] === null && s.declared[id] === null);
 
-function start(setup: PusoySetup, players: readonly string[], seed: number): PsState {
-  const rng = makeRng(seed);
+function start(setup: PusoySetup, players: readonly string[], seed: number | Rng): PsState {
+  const rng = rngFrom(seed);
   const deck = shuffle(Array.from({ length: 52 }, (_, i) => i), rng);
   const hands: Record<string, Card[]> = {};
   const eligible: Record<string, NaturalKey[]> = {};

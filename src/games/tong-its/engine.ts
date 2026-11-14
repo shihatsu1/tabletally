@@ -14,7 +14,7 @@
  * - Players who never showed a meld are burned.
  */
 import type { BotLevel, PlayEngine } from '../../core/play';
-import { makeRng, shuffle, type Rng } from '../../core/rng';
+import { makeRng, rngFrom, shuffle, type Rng } from '../../core/rng';
 import type { Card } from '../cards';
 import { rankOf, suitOf } from '../cards';
 import { bestDeadwood, discardAdvice, organize, pointsOf } from './hand';
@@ -172,8 +172,8 @@ function pendingResponder(s: TiState): string | null {
   return null;
 }
 
-function start(_setup: TongItsSetup, players: readonly string[], seed: number): TiState {
-  const rng = makeRng(seed);
+function start(_setup: TongItsSetup, players: readonly string[], seed: number | Rng): TiState {
+  const rng = rngFrom(seed);
   const deck = shuffle(Array.from({ length: 52 }, (_, i) => i), rng);
   const dealer = players[(rng() >>> 0) % players.length] as string;
   const hands: Record<string, Card[]> = {};

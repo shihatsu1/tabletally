@@ -14,7 +14,7 @@
  *   left of the button. A bet nobody can call is returned to the bettor.
  */
 import type { BotLevel, PlayEngine } from '../../core/play';
-import { makeRng, shuffle, type Rng } from '../../core/rng';
+import { makeRng, rngFrom, shuffle, type Rng } from '../../core/rng';
 import type { Card } from '../cards';
 import { rankOf } from '../cards';
 import { eval5 } from '../pusoy/engine';
@@ -148,8 +148,8 @@ function post(s: PkState, id: string, amount: number): void {
   if (seat.stack === 0) seat.allIn = true;
 }
 
-function start(setup: PokerSetup, players: readonly string[], seed: number, prev?: PkState | null): PkState {
-  const rng = makeRng(seed);
+function start(setup: PokerSetup, players: readonly string[], seed: number | Rng, prev?: PkState | null): PkState {
+  const rng = rngFrom(seed);
   const n = players.length;
   const blinds = blindsOf(setup);
   const deck = shuffle(Array.from({ length: 52 }, (_, i) => i), rng);

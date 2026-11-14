@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { cryptoRng } from '../core/rng';
 import {
   MAX_MESSAGE_BYTES,
   ROOM_CODE_ALPHABET,
@@ -283,7 +284,8 @@ export class Room extends DurableObject<Env> {
       return;
     }
     const seed = crypto.getRandomValues(new Uint32Array(1))[0] as number;
-    const result = applyMessage(state, actorFor(state, att.tokenHash), parsed, now, seed);
+    // Cards are shuffled straight from crypto.getRandomValues, never from a 32-bit seed someone could search.
+    const result = applyMessage(state, actorFor(state, att.tokenHash), parsed, now, seed, cryptoRng());
     if (!result.ok) {
       this.send(ws, { t: 'error', code: result.code, message: result.message });
       return;
