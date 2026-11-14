@@ -28,7 +28,7 @@ Everyone needs an internet connection. Friends should join before the first hand
 
 - **Pusoy Dos** (2 to 4 players): winner takes all by default; optional penalties for cards left, play until one remains, and a multiplier for 2s.
 - **Pusoy**, 13-card Chinese poker (2 to 4): everyone sets top, middle and bottom rows in secret; 2-4 or 1-6 points, royalties and naturals. After every hand everyone sees everyone's rows, marked won or lost against their own.
-- **Tong-its** (3): Tongits Go style payments by default, always with a pot; Pagat's amounts as an option.
+- **Tong-its** (3): online-app-style payments by default, always with a pot; Pagat's amounts as an option.
 - **Poker** (2 to 6): no-limit Texas Hold'em with play chips; stacks carry from hand to hand.
 
 Fill any empty seat with a computer player (Easy, Normal or Hard), or play alone against three. How each game is played and scored, with worked examples, is in [`docs/rules/`](docs/rules).

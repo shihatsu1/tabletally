@@ -126,8 +126,12 @@ export interface PkView {
   raise: { min: number; max: number } | null;
   blinds: { sb: number; bb: number };
   done: boolean;
-  /** At the end: who showed what, and who won how much. */
-  reveal?: { id: string; hole: Card[]; cat: number }[];
+  /**
+   * At the end: the two cards of every player who did not fold, in seat order (folded hands stay hidden).
+   * `cat` is the best hand with the board (null when fewer than three board cards were dealt); `showed` marks
+   * the players who went to the showdown, so their hands decided the pot.
+   */
+  reveal?: { id: string; hole: Card[]; cat: number | null; showed: boolean }[];
   wins?: PkWin[];
 }
 
@@ -378,7 +382,16 @@ function viewFor(s: PkState, pid: string | null): PkView {
     done: over,
   };
   if (over) {
-    view.reveal = s.showdown.map((x) => ({ id: x.id, hole: [...(s.seats[x.id] as PkSeat).hole], cat: x.cat }));
+    // Once the hand is over, everyone still in it turns their cards up, even a winner everyone folded to.
+    // Folded hands are never shown.
+    view.reveal = s.players
+      .filter((id) => !(s.seats[id] as PkSeat).folded)
+      .map((id) => {
+        const seat = s.seats[id] as PkSeat;
+        const shown = s.showdown.find((x) => x.id === id);
+        const cat = shown ? shown.cat : s.board.length >= 3 ? bestOf([...seat.hole, ...s.board]).cat : null;
+        return { id, hole: [...seat.hole], cat, showed: shown !== undefined };
+      });
     view.wins = s.wins;
   }
   return view;

@@ -6,7 +6,7 @@
   import { getItem, setItem } from '../../lib/storage';
   import CardFan from '../../components/CardFan.svelte';
   import HeldRows from '../../components/HeldRows.svelte';
-  import Icon from '../../components/Icon.svelte';
+  import HowToPlay from '../../components/HowToPlay.svelte';
 
   interface Props {
     view: PsView;
@@ -26,7 +26,7 @@
   /** All 13 cards, always in the hand: slots 0-2 are the top row, 3-7 the middle, 8-12 the bottom. */
   let layout = $state<number[]>([]);
   let sel = $state<number | null>(null);
-  let rulesOpen = $state(false);
+  const RULES = ['pusoy.play.rule.layout', 'pusoy.play.rule.swap', 'pusoy.play.rule.swapRows', 'pusoy.play.rule.order', 'pusoy.play.rule.ranks', 'pusoy.play.rule.secret'];
   /** The order warning only appears once you have started rearranging (a fresh deal is never in order). */
   let touched = $state(false);
 
@@ -117,27 +117,12 @@
   const markName: Record<number, string> = { 1: 'pusoy.play.rowWon', [-1]: 'pusoy.play.rowLost', 0: 'pusoy.play.rowTie' };
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && (rulesOpen = false)} />
 {#snippet help(corner: boolean)}
-  <button type="button" class="ghost rules-toggle" class:corner aria-expanded={rulesOpen} aria-label={t('pusoy.play.rulesTitle')} onclick={() => (rulesOpen = !rulesOpen)}><Icon name="help" /></button>
+  <span class="help-slot" class:corner><HowToPlay title={t('pusoy.play.rulesTitle')} items={RULES.map((k) => t(k))} /></span>
 {/snippet}
 <!-- The help button sits in a row of its own controls while your hand is on screen, so it never covers the row labels. -->
 <div class="ps">
   {#if helpInCorner}{@render help(true)}{/if}
-  {#if rulesOpen}
-    <div class="rules" role="dialog" aria-label={t('pusoy.play.rulesTitle')}>
-      <strong>{t('pusoy.play.rulesTitle')}</strong>
-      <ul>
-        <li>{t('pusoy.play.rule.layout')}</li>
-        <li>{t('pusoy.play.rule.swap')}</li>
-        <li>{t('pusoy.play.rule.swapRows')}</li>
-        <li>{t('pusoy.play.rule.order')}</li>
-        <li>{t('pusoy.play.rule.ranks')}</li>
-        <li>{t('pusoy.play.rule.secret')}</li>
-      </ul>
-      <button type="button" class="ghost" onclick={() => (rulesOpen = false)}>{t('room.closeMenu')}</button>
-    </div>
-  {/if}
 
   {#if revealing && view.reveal}
     <p class="dim small legend">{view.you ? t('pusoy.play.revealHelp') : t('pusoy.play.revealHelpAll')}</p>
@@ -202,14 +187,10 @@
 
 <style>
   .ps { position: relative; display: flex; flex-direction: column; gap: 6px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
-  .rules-toggle { flex: none; width: 44px; min-height: 44px; height: 44px; padding: 0; border-radius: 50%; display: grid; place-items: center; color: var(--accent); border: 0; }
-  .rules-toggle.corner { position: absolute; right: 0; top: -4px; z-index: 6; }
+  .help-slot { flex: none; display: grid; place-items: center; }
+  .help-slot.corner { position: absolute; right: 0; top: -4px; z-index: 6; }
   .status { flex: none; display: flex; align-items: center; gap: 6px; }
   .status .small { flex: 1; }
-  /* an overlay on the whole screen (the screen is the containing block), so the play area never clips it */
-  .rules { position: fixed; z-index: 25; right: 10px; top: 52px; max-height: calc(100% - 64px); overflow-y: auto; width: min(320px, calc(100% - 20px)); padding: 10px 14px; border-radius: 12px; border: 1px solid var(--brass); background: var(--felt-900, #0b2f25); color: var(--cream, #f3e9d2); box-shadow: 0 8px 24px rgba(0,0,0,.5); font-size: .85rem; }
-  .rules ul { margin: 6px 0 8px; padding-left: 1.1em; }
-  .rules li { margin: .3em 0; }
   .hand { flex: 1 1 0; min-height: 200px; padding-right: 2px; }
   .nat-btn { width: 100%; }
   .acts { flex: none; display: grid; grid-template-columns: 44px 1fr 1fr; gap: 8px; align-items: center; }

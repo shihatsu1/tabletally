@@ -88,7 +88,7 @@
 </div>
 
 <style>
-  .fan { position: relative; width: 100%; height: 100%; min-height: 40px; }
+  .fan { isolation: isolate; position: relative; width: 100%; height: 100%; min-height: 40px; }
   .slot { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; transition: transform .14s ease; }
   @media (prefers-reduced-motion: reduce) { .slot { transition: none; } }
 </style>

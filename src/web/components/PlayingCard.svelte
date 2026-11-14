@@ -19,9 +19,6 @@
   const suit = $derived(card === null ? 0 : suitOf(card));
   const red = $derived(suit === 1 || suit === 2);
   const label = $derived(card === null ? t('card.back') : t('card.name', { rank, suit: t(`card.${SUIT_KEY[suit]}`) }));
-  // Below this width the printed corner index is too small to read, so a mini face (big rank and suit) is drawn.
-  const MINI_BELOW = 40;
-  const mini = $derived(size < MINI_BELOW);
   // Position in the 13 x 4 sprite, as background percentages.
   const pos = $derived(card === null ? '' : `${((rankOf(card) - 1) * 100) / 12}% ${(suit * 100) / 3}%`);
 </script>
@@ -30,9 +27,9 @@
   {#if card === null}
     <span class="back" aria-hidden="true"></span>
   {:else}
-    <!-- on full-size cards the text index is a fallback that only shows if the card image cannot load -->
-    <span class="idx" class:red class:mini aria-hidden="true"><b>{rank}</b><i>{GLYPH[suit]}</i></span>
-    {#if !mini}<span class="art" style="background-position: {pos}" aria-hidden="true"></span>{/if}
+    <!-- every card, at any size, is the real card picture; the text index only shows if the image cannot load -->
+    <span class="idx" class:red aria-hidden="true"><b>{rank}</b><i>{GLYPH[suit]}</i></span>
+    <span class="art" style="background-position: {pos}" aria-hidden="true"></span>
   {/if}
 {/snippet}
 
@@ -44,7 +41,8 @@
 
 <style>
   .card {
-    position: relative; display: block; flex: none; overflow: hidden;
+    /* margin: 0 because the page-wide .card panel style would otherwise push every playing card down 14 px */
+    position: relative; display: block; flex: none; overflow: hidden; margin: 0;
     width: var(--cw); height: calc(var(--cw) * 1.4536); padding: 0; min-height: 0;
     border-radius: calc(var(--cw) * .065); border: 1px solid #b9b2a0; background: #fff;
     box-shadow: -1px 2px 5px rgba(0,0,0,.4); cursor: default; color: #1d1608;
@@ -55,9 +53,6 @@
   .idx b { font-size: calc(var(--cw) * .24); }
   .idx i { font-style: normal; font-size: calc(var(--cw) * .22); }
   .idx.red { color: #c0392b; }
-  .idx.mini { left: 0; right: 0; top: 4%; font-family: var(--font-ui); font-weight: 800; }
-  .idx.mini b { font-size: calc(var(--cw) * .5); letter-spacing: -.04em; }
-  .idx.mini i { font-size: calc(var(--cw) * .48); }
   .art { position: absolute; inset: 0; background-image: url('/cards/deck.webp'); background-size: 1300% 400%; background-repeat: no-repeat; }
   .back {
     position: absolute; inset: 0; border-radius: inherit; border: calc(var(--cw) * .06) solid #fbf5e1;

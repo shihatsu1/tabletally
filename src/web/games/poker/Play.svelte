@@ -3,6 +3,7 @@
   import { t } from '../../lib/i18n.svelte';
   import CardFan from '../../components/CardFan.svelte';
   import PlayingCard from '../../components/PlayingCard.svelte';
+  import HowToPlay from '../../components/HowToPlay.svelte';
 
   interface Props {
     view: PkView;
@@ -40,15 +41,22 @@
       const w = view.wins ?? [];
       return w.length === 0 ? t('poker.handOver') : w.map((x) => t('poker.wins', { name: nameOf(x.id), n: x.amount })).join(' · ');
     }
-    if (myTurn) return view.toCall === 0 ? t('poker.yourTurnCheck') : t('poker.yourTurnCall', { n: view.toCall });
+    if (myTurn) return view.toCall === 0 ? '' : t('poker.yourTurnCall', { n: view.toCall });
     return view.toAct ? t('play.turnOf', { name: nameOf(view.toAct) }) : '';
   });
   const slots = [0, 1, 2, 3, 4];
+  const RULES = ['poker.rule.deal', 'poker.rule.act', 'poker.rule.win', 'poker.rule.chips'];
+  // At the end the cards of every other player still in the hand are turned face up (yours stay in your hand below).
+  const shown = $derived(view.done && view.reveal ? view.reveal.filter((r) => r.id !== me) : []);
+  const wonBy = (id: string): number => (view.wins ?? []).filter((w) => w.id === id).reduce((a, w) => a + w.amount, 0);
 </script>
 
 <svelte:window bind:innerHeight={winH} />
 <div class="pk">
-  <div class="status" class:mine={myTurn} aria-live="polite">{#if myTurn}<strong>{t('play.yourTurn')}</strong> · {/if}{status}</div>
+  <div class="status" class:mine={myTurn} aria-live="polite">
+    <span class="msg">{#if myTurn}<strong>{t('play.yourTurn')}</strong>{#if status} · {/if}{/if}{status}</span>
+    <HowToPlay small title={t('play.howTo')} items={RULES.map((k) => t(k))} />
+  </div>
 
   <div class="felt">
     <div class="info">
@@ -60,10 +68,17 @@
         {#if view.board[i] !== undefined}<PlayingCard card={view.board[i] as number} size={board} />{:else}<span class="empty" style="width: {board}px; height: {Math.round(board * 1.4)}px"></span>{/if}
       {/each}
     </div>
-    {#if view.done && view.reveal && view.reveal.length > 0}
-      <div class="reveal">
-        {#each view.reveal as r (r.id)}
-          <span class="rv"><span class="dim small">{nameOf(r.id)}</span>{#each r.hole as c (c)}<PlayingCard card={c} size={30} />{/each}<span class="small">{t(`pusoy.play.hand.${KINDS[r.cat]}`)}</span></span>
+    {#if shown.length > 0}
+      <div class="reveal" class:two={shown.length > 3} role="list" aria-label={t('poker.allHands')}>
+        {#each shown as r (r.id)}
+          {@const won = wonBy(r.id)}
+          <div class="rv" class:won={won > 0} role="listitem">
+            <span class="cards">{#each r.hole as c (c)}<PlayingCard card={c} size={shown.length > 3 ? 24 : 30} />{/each}</span>
+            <span class="who">
+              <span class="nm">{nameOf(r.id)}{#if won > 0}<b>+{won}</b>{/if}</span>
+              <span class="kd">{r.cat !== null ? t(`pusoy.play.hand.${KINDS[r.cat]}`) : ''}</span>
+            </span>
+          </div>
         {/each}
       </div>
     {/if}
@@ -106,9 +121,11 @@
 </div>
 
 <style>
+  .status { display: flex; align-items: center; gap: 6px; }
+  .status .msg { flex: 1; min-width: 0; }
   .pk { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
   .row, .raise { flex: none; }
-  .hole { flex: 1 1 0; min-height: 90px; max-height: 190px; }
+  .hole { flex: 1 1 0; min-height: 64px; max-height: 190px; }
   .holefan { width: min(240px, 100%); height: 100%; margin: 0 auto; }
   .holefan.folded { opacity: .5; }
   .status { flex: none; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: var(--step--1); line-height: 1.3; }
@@ -120,8 +137,16 @@
   .board { display: flex; gap: 4px; justify-content: center; }
   .empty { border-radius: 6px; border: 1px dashed rgba(243,233,210,.35); }
   .reveal { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; width: 100%; color: var(--cream, #f3e9d2); }
-  .rv { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 100%; }
-  .rv > .dim { max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .reveal.two { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 6px; }
+  .rv { display: flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; padding: 1px 4px; border-radius: 8px; border: 1px solid transparent; }
+  .rv.won { border-color: var(--brass-soft); background: rgba(0,0,0,.18); }
+  .cards { display: inline-flex; flex: none; }
+  .cards { gap: 2px; }
+  .who { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+  .nm, .kd { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nm { font-size: .75rem; }
+  .nm b { margin-left: .35em; color: var(--brass-soft); }
+  .kd { font-size: .68rem; opacity: .8; }
   .hole { display: flex; flex-direction: column; gap: 2px; align-items: center; }
   .small { font-size: .75rem; }
   .row { display: flex; gap: 8px; }

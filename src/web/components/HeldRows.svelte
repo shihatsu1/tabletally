@@ -56,7 +56,8 @@
 </div>
 
 <style>
-  .held { position: relative; width: 100%; height: 100%; min-height: 120px; border-radius: 12px; }
+  /* isolation keeps the cards' z-index inside this box, so pop-ups and menus stay above the hand */
+  .held { isolation: isolate; position: relative; width: 100%; height: 100%; min-height: 120px; border-radius: 12px; }
   .held.bad { outline: 2px solid color-mix(in srgb, #ff9a78 75%, transparent); outline-offset: 3px; }
   .slot { position: absolute; transition: left .14s ease, top .14s ease; }
   .lab { position: absolute; max-width: 70px; font-size: .74rem; line-height: 1.25; color: var(--brass-soft, var(--brass)); }

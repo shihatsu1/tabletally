@@ -4,6 +4,7 @@
   import { t } from '../../lib/i18n.svelte';
   import CardFan from '../../components/CardFan.svelte';
   import PlayingCard from '../../components/PlayingCard.svelte';
+  import HowToPlay from '../../components/HowToPlay.svelte';
 
   interface Props {
     view: TiView;
@@ -45,9 +46,8 @@
       return view.toAct === me ? t('tong.play.answer', { name: nameOf(view.fight.caller) }) : t('tong.play.called', { name: nameOf(view.fight.caller) });
     }
     if (!myTurn) return t('play.turnOf', { name: nameOf(view.toAct ?? view.turn) });
-    if (view.phase === 'draw') return t('tong.play.draw');
     if (view.mustMeld !== null) return t('tong.play.mustMeld');
-    return view.firstTurn ? t('tong.play.first') : t('tong.play.act');
+    return '';
   });
   // However many melds there are, they shrink to fit; the hand and the buttons below are never squeezed out.
   const meldCards = $derived(view.melds.reduce((a, m) => a + m.size, 0));
@@ -88,11 +88,15 @@
   // \uFE0E keeps phones from drawing the suits as coloured emoji
   const SUIT_MARK = ['\u2660\uFE0E', '\u2665\uFE0E', '\u2666\uFE0E', '\u2663\uFE0E'];
   const short = (c: number): string => `${RANK_LABELS[rankOf(c) - 1]}${SUIT_MARK[suitOf(c)]}`;
+  const RULES = ['tong.rule.draw', 'tong.rule.meld', 'tong.rule.sapaw', 'tong.rule.discard', 'tong.rule.draw2', 'tong.rule.tongits', 'tong.rule.helper'];
   const byOwner = $derived(view.players.map((id) => ({ id, melds: view.melds.filter((m) => m.owner === id) })).filter((o) => o.melds.length > 0));
 </script>
 
 <div class="ti">
-  <div class="status" class:mine={myTurn} aria-live="polite">{#if myTurn}<strong>{t('play.yourTurn')}</strong> · {/if}{status}</div>
+  <div class="status" class:mine={myTurn} aria-live="polite">
+    <span class="msg">{#if myTurn}<strong>{t('play.yourTurn')}</strong>{#if status} · {/if}{/if}{status}</span>
+    <HowToPlay small title={t('play.howTo')} items={RULES.map((k) => t(k))} />
+  </div>
 
   <div class="mat">
     <div class="piles">
@@ -130,7 +134,7 @@
       <div class="helper">
         {#each held.melds as m (m.join('.'))}
           <button type="button" class="chip" aria-label={t('tong.play.ungroup', { cards: m.map(short).join(' ') })} onclick={() => (loose = [...loose, ...m])}>
-            {#each m as c (c)}<span class:red={suitOf(c) === 1 || suitOf(c) === 2}>{short(c)}</span>{/each}<span class="x" aria-hidden="true">✕</span>
+            <span class="chipcards">{#each m as c (c)}<PlayingCard card={c} size={22} />{/each}</span><span class="x" aria-hidden="true">✕</span>
           </button>
         {/each}
         {#if loose.length > 0}<button type="button" class="chip again" onclick={() => (loose = [])}>{t('tong.play.regroup')}</button>{/if}
@@ -161,12 +165,15 @@
 </div>
 
 <style>
+  .status { display: flex; align-items: center; gap: 6px; }
+  .status .msg { flex: 1; min-width: 0; }
   .ti { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
   .row, .status { flex: none; }
   .hand { flex: 1 1 0; min-height: 120px; max-height: 340px; }
   .helper { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
-  .chip { min-height: 32px; padding: 2px 8px; border-radius: 999px; font-size: .78rem; display: inline-flex; gap: 3px; align-items: center; background: color-mix(in srgb, var(--brass) 12%, transparent); }
-  .chip .red { color: var(--neg); }
+  .chip { min-height: 40px; padding: 2px 8px 2px 4px; border-radius: 999px; font-size: .78rem; display: inline-flex; gap: 3px; align-items: center; background: color-mix(in srgb, var(--brass) 12%, transparent); }
+  .chipcards { display: inline-flex; pointer-events: none; }
+  .chipcards > :global(* + *) { margin-left: -9px; }
   .chip .x { margin-left: 3px; color: var(--text-dim); }
   .chip.again { background: none; color: var(--accent); }
   .points { margin-left: auto; font-size: .78rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--accent); }

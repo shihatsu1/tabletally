@@ -19,6 +19,15 @@ All notable changes to TableTally. Dates are in Asia/Tokyo. Codes in brackets ar
 - Your hand is held the way players hold it: the melds you could lay down come first, each with a gap after it, then the other cards in rank order (A, 2, 3 ... K) instead of by suit.
 - Each suggested meld has a chip above the hand; tap its ✕ to put those cards back among the others, and "Group again" to undo.
 
+### Every game the same
+- No how-to-play text in the middle of the screen: the status line only says what is happening (your turn, who is thinking, who won, a Draw call, the amount to call). How to play is behind the same "?" button in every game.
+- Every card is drawn as the real card picture at every size; the simplified number-and-suit faces are gone (the Tong-its meld chips use real cards too).
+- Fixed: a page-wide panel style gave every playing card a 14 px margin, which pushed cards in a hand down and could make them overlap the buttons below.
+- The Tong-its payment preset is called "Online app style".
+
+### Poker
+- When a hand is over, everyone who did not fold shows their two cards with their best hand, and the winner is marked. Folded hands stay hidden.
+
 ### Cards and screens
 - Real card faces from Byron Knoll's public-domain deck: number cards show their pips and J, Q, K show court art. The whole deck is one 584 KB image. Cards under 40 px wide switch to a big rank and suit so they stay readable.
 - Hands are held like real cards: an arc fan in Pusoy Dos, Tong-its and Poker, and Pusoy's top 3, middle 5 and bottom 5 overlapping from back to front. Pickable fans keep a 32 px strip of every card to tap.

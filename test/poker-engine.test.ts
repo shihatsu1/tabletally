@@ -91,7 +91,9 @@ describe('a hand of hold\'em', () => {
     s = act(s, 'B', { t: 'fold' });
     expect(s.street).toBe('over');
     expect(s.endStacks).toEqual({ A: 100, B: 99, C: 101 });
-    expect(E.viewFor(s, 'C').reveal).toEqual([]); // nobody had to show
+    // nobody had to show; the winner still turns their cards up, the folded hands stay hidden
+    const rv = E.viewFor(s, 'A').reveal!;
+    expect(rv).toEqual([{ id: 'C', hole: s.seats.C!.hole, cat: null, showed: false }]);
   });
   it('rejects illegal actions: out of turn, check facing a bet, too small a raise, more chips than you have', () => {
     const s = hand(P3, { button: 0 });

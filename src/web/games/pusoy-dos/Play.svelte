@@ -3,6 +3,7 @@
   import { classify, playProblem } from '../../../games/pusoy-dos/engine';
   import { t } from '../../lib/i18n.svelte';
   import CardFan from '../../components/CardFan.svelte';
+  import HowToPlay from '../../components/HowToPlay.svelte';
 
   interface Props {
     view: PdView;
@@ -40,14 +41,18 @@
   const status = $derived.by(() => {
     if (view.done) return t(view.scoring === 'placement' ? 'play.handOverPlace' : 'play.handOver', { name: nameOf(view.out[0] ?? '') });
     if (problem && mine) return t(problem === 'cannotBeat' ? 'play.cannotBeat' : problem === 'mustInclude' ? 'play.leadFirst' : 'play.notPlay');
-    if (mine) return view.lead === null ? t(view.mustInclude !== null ? 'play.leadFirst' : 'play.lead') : t('play.beat', { name: nameOf(view.lead.by), what: t(`play.kind.${leadKind ?? 'single'}`) });
+    if (mine) return '';
     return view.turn ? t('play.turnOf', { name: nameOf(view.turn) }) : '';
   });
+  const RULES = ['pdos.rule.goal', 'pdos.rule.order', 'pdos.rule.first', 'pdos.rule.plays', 'pdos.rule.beat', 'pdos.rule.pass', 'pdos.rule.pick'];
   const passedNames = $derived(view.passed.map(nameOf).join(', '));
 </script>
 
 <div class="pd">
-  <div class="status" class:mine aria-live="polite">{#if mine && !problem}<strong>{t('play.yourTurn')}</strong> · {/if}{status}</div>
+  <div class="status" class:mine aria-live="polite">
+    <span class="msg">{#if mine && !problem}<strong>{t('play.yourTurn')}</strong>{#if status} · {/if}{/if}{status}</span>
+    <HowToPlay small title={t('play.howTo')} items={RULES.map((k) => t(k))} />
+  </div>
 
   <div class="mat" aria-label={t('play.table')}>
     {#if view.lead}
@@ -78,6 +83,8 @@
 </div>
 
 <style>
+  .status { display: flex; align-items: center; gap: 6px; }
+  .status .msg { flex: 1; min-width: 0; }
   .pd { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
   .row, .status { flex: none; }
   .status { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: var(--step--1); line-height: 1.3; }
