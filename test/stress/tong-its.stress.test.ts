@@ -115,7 +115,12 @@ describe('Tong-its stress', () => {
       challengeMode: pick(['replace', 'add'] as const, r0), burnedChips: r0() % 5, aceChips: r0() % 4, secretChips: r0() % 6, longRunChips: r0() % 5,
       sagasaChips: r0() % 4, potAnte: 1 + (r0() % 5),
     });
-    const configs: TongItsSetup[] = [PRESETS.pagat, PRESETS['tongits-go'], ...range(10).map(custom)];
+    // the old Pagat amounts stay covered: tables saved with them still play and score
+    const pagat: TongItsSetup = {
+      preset: 'pagat', winChips: 1, tongitsChips: 3, tongitsMode: 'replace', challengeChips: 3, challengeMode: 'replace',
+      burnedChips: 1, aceChips: 1, secretChips: 3, longRunChips: 0, sagasaChips: 0, potAnte: 2,
+    };
+    const configs: TongItsSetup[] = [pagat, PRESETS['tongits-go'], ...range(10).map(custom)];
     let hands = 0;
     let moves = 0;
     let walkerSteps = 0;

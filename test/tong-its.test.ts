@@ -3,7 +3,12 @@ import { replay, type LedgerEvent } from '../src/core/ledger';
 import { PRESETS, baseChips, tongIts as game, type TongItsInput, type TongItsSetup } from '../src/games/tong-its';
 
 const P = ['A', 'B', 'C'];
-const pagat = (over: Partial<TongItsSetup> = {}): TongItsSetup => ({ ...PRESETS.pagat, ...over });
+// The old Pagat amounts: no longer offered, but tables saved with them must still score the same.
+const PAGAT: TongItsSetup = {
+  preset: 'pagat', winChips: 1, tongitsChips: 3, tongitsMode: 'replace', challengeChips: 3, challengeMode: 'replace',
+  burnedChips: 1, aceChips: 1, secretChips: 3, longRunChips: 0, sagasaChips: 0, potAnte: 2,
+};
+const pagat = (over: Partial<TongItsSetup> = {}): TongItsSetup => ({ ...PAGAT, ...over });
 const go = (over: Partial<TongItsSetup> = {}): TongItsSetup => ({ ...PRESETS['tongits-go'], ...over });
 const sum = (n: Record<string, number>) => Object.values(n).reduce((a, b) => a + b, 0);
 const run = (s: TongItsSetup, input: TongItsInput) => {
@@ -11,7 +16,7 @@ const run = (s: TongItsSetup, input: TongItsInput) => {
   return game.score(s, P, input) as Record<string, number>;
 };
 
-describe('Pagat preset (docs/rules/tong-its.md worked examples)', () => {
+describe('Pagat amounts, kept for older tables (docs/rules/tong-its.md worked examples)', () => {
   it('1. ordinary win with 2 aces, B opened, C burned: A +7, B -3, C -4', () => {
     expect(run(pagat(), { winner: 'A', ending: 'normal', stake: 1, aces: 2, burned: ['C'] })).toEqual({ A: 7, B: -3, C: -4 });
   });
@@ -38,7 +43,7 @@ describe('Pagat preset (docs/rules/tong-its.md worked examples)', () => {
   });
 });
 
-describe('Tongits Go preset (multipliers are added)', () => {
+describe('Online app style, the only preset (multipliers are added)', () => {
   it('normal win is 1 each; Tongits is 1 + 1 = 2 each', () => {
     expect(run(go(), { winner: 'A', ending: 'normal', stake: 1 })).toEqual({ A: 2, B: -1, C: -1 });
     expect(run(go(), { winner: 'A', ending: 'tongits', stake: 1 })).toEqual({ A: 4, B: -2, C: -2 });
@@ -49,17 +54,19 @@ describe('Tongits Go preset (multipliers are added)', () => {
     expect(run(go(), { winner: 'C', ending: 'challenge', stake: 1, secrets: 1, sagasa: 1, burned: ['A'] })).toEqual({ A: -7, B: -6, C: 13 });
   });
 
-  it('aces are worth nothing in this preset', () => {
-    expect(run(go(), { winner: 'A', ending: 'normal', stake: 1, aces: 4 })).toEqual({ A: 2, B: -1, C: -1 });
+  it('each ace the winner holds adds 1 chip from each loser', () => {
+    expect(run(go(), { winner: 'A', ending: 'normal', stake: 1, aces: 2 })).toEqual({ A: 6, B: -3, C: -3 });
+    expect(run(go(), { winner: 'A', ending: 'tongits', stake: 1, aces: 1, secrets: 1 })).toEqual({ A: 10, B: -5, C: -5 });
   });
 });
 
 describe('defaults', () => {
-  it('start as Tongits Go style with a pot that is always on', () => {
+  it('start as the online app style (aces +1) with a pot that is always on', () => {
     const d = game.defaultSetup(3);
     expect(d.preset).toBe('tongits-go');
     expect(d.potAnte).toBeGreaterThanOrEqual(1);
-    expect(PRESETS.pagat.potAnte).toBeGreaterThanOrEqual(1);
+    expect(d.aceChips).toBe(1);
+    expect(Object.keys(PRESETS)).toEqual(['tongits-go']);
     expect(game.validateSetup(d, 3)).toEqual([]);
   });
 });
@@ -88,17 +95,17 @@ describe('validation', () => {
     for (const b of bad) expect(game.validate(pagat({ potAnte: 2 }), P, b as TongItsInput).length, JSON.stringify(b)).toBeGreaterThan(0);
   });
 
-  it('validateSetup accepts both presets and rejects bad options without throwing', () => {
-    expect(game.validateSetup(PRESETS.pagat, 3)).toEqual([]);
+  it('validateSetup accepts the preset and old Pagat tables, and rejects bad options without throwing', () => {
+    expect(game.validateSetup(PAGAT, 3)).toEqual([]);
     expect(game.validateSetup(PRESETS['tongits-go'], 3)).toEqual([]);
-    for (const bad of [null, [], { ...PRESETS.pagat, potAnte: 0 }, { ...PRESETS.pagat, preset: 'x' }, { ...PRESETS.pagat, winChips: 0 }, { ...PRESETS.pagat, aceChips: 101 }, { ...PRESETS.pagat, tongitsMode: 'x' }, { ...PRESETS.pagat, potAnte: { toString: null } }, { ...PRESETS.pagat, burnedChips: 1.5 }]) {
+    for (const bad of [null, [], { ...PAGAT, potAnte: 0 }, { ...PAGAT, preset: 'x' }, { ...PAGAT, winChips: 0 }, { ...PAGAT, aceChips: 101 }, { ...PAGAT, tongitsMode: 'x' }, { ...PAGAT, potAnte: { toString: null } }, { ...PAGAT, burnedChips: 1.5 }]) {
       expect(() => game.validateSetup(bad, 3)).not.toThrow();
       expect(game.validateSetup(bad, 3).length, JSON.stringify(bad)).toBeGreaterThan(0);
     }
   });
 
   it('the biggest allowed round stays inside the amount limit', () => {
-    const s: TongItsSetup = { ...PRESETS.pagat, preset: 'custom', winChips: 100, tongitsChips: 100, tongitsMode: 'add', burnedChips: 100, aceChips: 100, secretChips: 100, longRunChips: 100, sagasaChips: 100, potAnte: 100 };
+    const s: TongItsSetup = { ...PAGAT, preset: 'custom', winChips: 100, tongitsChips: 100, tongitsMode: 'add', burnedChips: 100, aceChips: 100, secretChips: 100, longRunChips: 100, sagasaChips: 100, potAnte: 100 };
     const input: TongItsInput = { winner: 'A', ending: 'tongits', stake: 10_000_000, aces: 4, secrets: 3, longRuns: 2, sagasa: 3, burned: ['B', 'C'], potDeals: 50 };
     expect(game.validate(s, P, input)).toEqual([]);
     const net = game.score(s, P, input);

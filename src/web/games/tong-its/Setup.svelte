@@ -12,9 +12,7 @@
   type NumKey = 'winChips' | 'tongitsChips' | 'challengeChips' | 'burnedChips' | 'aceChips' | 'secretChips' | 'longRunChips' | 'sagasaChips' | 'potAnte';
   const fields: NumKey[] = ['winChips', 'tongitsChips', 'challengeChips', 'burnedChips', 'aceChips', 'secretChips', 'longRunChips', 'sagasaChips', 'potAnte'];
 
-  function pickPreset(name: string) {
-    if (name === 'pagat' || name === 'tongits-go') onchange({ ...PRESETS[name] });
-  }
+  const standard = $derived(setup.preset === 'tongits-go');
 
   function setNum(key: NumKey, input: HTMLInputElement) {
     const v = Number.parseInt(input.value, 10);
@@ -29,13 +27,9 @@
   }
 </script>
 
-<label for="preset">{t('tong.preset')}</label>
-<select id="preset" value={setup.preset} onchange={(e) => pickPreset(e.currentTarget.value)}>
-  <option value="pagat">{t('tong.preset.pagat')}</option>
-  <option value="tongits-go">{t('tong.preset.tongits-go')}</option>
-  {#if setup.preset === 'custom'}<option value="custom" disabled>{t('tong.preset.custom')}</option>{/if}
-</select>
-<p class="dim note">{t(`tong.preset.${setup.preset}.help`)}</p>
+<p class="head"><span class="dim">{t('tong.preset')}:</span> <strong>{t(standard ? 'tong.preset.tongits-go' : 'tong.preset.custom')}</strong></p>
+<p class="dim note">{t(standard ? 'tong.preset.tongits-go.help' : 'tong.preset.custom.help')}</p>
+{#if !standard}<button type="button" class="ghost reset" onclick={() => onchange({ ...PRESETS['tongits-go'] })}>{t('tong.preset.reset')}</button>{/if}
 
 <details>
   <summary>{t('tong.customize')}</summary>
@@ -58,7 +52,9 @@
 </details>
 
 <style>
+  .head { margin: .9em 0 0; }
   .note { font-size: .85rem; margin: 6px 0 0; }
+  .reset { margin-top: 8px; }
   details { margin-top: 10px; }
   summary { cursor: pointer; color: var(--accent); }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }

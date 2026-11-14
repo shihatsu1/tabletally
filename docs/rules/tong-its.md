@@ -39,18 +39,18 @@ While a hand is on, your phone shows **Points in hand**: what your cards would c
 
 The winner collects from each loser, in chips times the stake (points per chip, set when the host deals).
 
-| Item | Tongits Go style (default) | Pagat |
+| Item | Online app style (the only preset) | Pagat (no longer offered) |
 |---|---|---|
 | Ordinary win | 1 | 1 |
 | Tong-its | 1 more (2 in all) | 3 instead of 1 |
 | Won a challenged Draw | 2 more (3 in all) | 3 instead of 1 |
 | Each burned loser pays extra | 1 | 1 |
-| Each ace the winner holds or showed | 0 | 1 |
+| Each ace the winner holds or showed | 1 (the maintainer's group; the app pays 0) | 1 |
 | Each secret four of a kind | 2 | 3 |
 | Sagasa | 1 | 0 |
 | Runs of five or more | 0 | 0 (an option) |
 
-Every amount is a host option before the first hand. **Tongits Go style** is the default because the maintainer's group plays the app's way. Its amounts come from a third-party review of the Tongits Go app (a real-money app, so the page is not linked); they are not checked against the app's own help. That app also takes 5% of every payout as a house cut; TableTally has no house and does not.
+Every amount is a host option before the first hand. The app offers one preset, **online app style**, because the maintainer's group plays the app's way, with 1 chip per ace added at their request (2026-11-14). The Pagat column is kept because tables created before then may use it; they still score the same. Its amounts come from a third-party review of the Tongits Go app (a real-money app, so the page is not linked); they are not checked against the app's own help. That app also takes 5% of every payout as a house cut; TableTally has no house and does not.
 
 **House choice:** a challenged Draw pays the "won a challenged Draw" amount whoever wins it; no source says what a losing challenger pays.
 
@@ -64,7 +64,7 @@ There is always a pot. Before every deal each player puts in the ante (2 chips b
 2. A goes out (Tong-its) with one secret four; nobody burned; no aces. Each pays 3 + 3. **A +12, B -6, C -6.**
 3. A wins a challenged Draw; C is burned. B pays 3; C pays 3 + 1. **A +7, B -3, C -4.**
 
-Tongits Go style: C wins a challenged Draw with one secret four and a Sagasa, and A is burned. Each loser pays 1 + 2 (challenge) + 2 (secret) + 1 (Sagasa) = 6, and A pays 1 more: **A -7, B -6, C +13.** (`test/tong-its.test.ts` checks all of these.)
+Online app style: C wins a challenged Draw with one secret four and a Sagasa, and A is burned. Each loser pays 1 + 2 (challenge) + 2 (secret) + 1 (Sagasa) = 6, and A pays 1 more: **A -7, B -6, C +13.** (`test/tong-its.test.ts` checks all of these.)
 
 ## Turn time and computer players
 

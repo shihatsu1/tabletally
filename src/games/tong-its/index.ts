@@ -50,16 +50,16 @@ export interface TongItsInput {
   potDeals?: number;
 }
 
-export const PRESETS: Readonly<Record<'pagat' | 'tongits-go', TongItsSetup>> = {
-  // Pagat: win 1, +1 per ace, +1 per burned loser, +3 per secret set, Tong-its 3 instead of 1, challenged Draw 3.
-  pagat: {
-    preset: 'pagat', winChips: 1, tongitsChips: 3, tongitsMode: 'replace', challengeChips: 3, challengeMode: 'replace',
-    burnedChips: 1, aceChips: 1, secretChips: 3, longRunChips: 0, sagasaChips: 0, potAnte: 2,
-  },
-  // Tongits Go (app) multipliers are added: Tongits x1, Win Challenge x2, Secret Meld x2, Burned x1, Sagasa x1. [UNVERIFIED]
+/**
+ * The one payment preset ("Online app style" in the app; the id is kept for saved tables). The amounts are added
+ * the way the Tongits Go app adds its multipliers (Tongits x1, Win Challenge x2, Secret Meld x2, Burned x1,
+ * Sagasa x1) [UNVERIFIED], plus 1 chip per ace the winner holds (the user's group, 2026-11-14).
+ * Tables created earlier with the old Pagat preset keep `preset: 'pagat'` and still validate and replay.
+ */
+export const PRESETS: Readonly<Record<'tongits-go', TongItsSetup>> = {
   'tongits-go': {
     preset: 'tongits-go', winChips: 1, tongitsChips: 1, tongitsMode: 'add', challengeChips: 2, challengeMode: 'add',
-    burnedChips: 1, aceChips: 0, secretChips: 2, longRunChips: 0, sagasaChips: 1, potAnte: 2,
+    burnedChips: 1, aceChips: 1, secretChips: 2, longRunChips: 0, sagasaChips: 1, potAnte: 2,
   },
 };
 
@@ -78,12 +78,13 @@ export const tongIts: GameModule<TongItsSetup, TongItsInput> = {
   id: 'tong-its',
   playerCounts: [3],
 
-  // Tongits Go style is the default, and there is always a pot.
+  // The online app style is the only preset, and there is always a pot.
   defaultSetup: () => ({ ...PRESETS['tongits-go'] }),
 
   validateSetup(raw) {
     if (!isRecord(raw)) return ['options must be an object'];
     const problems: string[] = [];
+    // 'pagat' is no longer offered, but tables saved with it must still load.
     if (!['pagat', 'tongits-go', 'custom'].includes(raw.preset as string)) problems.push('unknown preset');
     for (const key of ['tongitsMode', 'challengeMode'] as const) {
       if (!['replace', 'add'].includes(raw[key] as string)) problems.push(`${key} must be replace or add`);

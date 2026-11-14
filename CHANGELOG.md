@@ -24,7 +24,7 @@ All notable changes to TableTally. Dates are in Asia/Tokyo. Codes in brackets ar
 - No how-to-play text in the middle of the screen: the status line only says what is happening (your turn, who is thinking, who won, a Draw call, the amount to call). How to play is behind the same "?" button in every game.
 - Every card is drawn as the real card picture at every size; the simplified number-and-suit faces are gone (the Tong-its meld chips use real cards too).
 - Fixed: a page-wide panel style gave every playing card a 14 px margin, which pushed cards in a hand down and could make them overlap the buttons below.
-- The Tong-its payment preset is called "Online app style".
+- Tong-its has one payment preset, "Online app style", now with 1 chip per ace the winner holds. The Pagat preset is no longer offered (tables created with it still score the same). The host can still change any amount.
 
 ### Poker
 - When a hand is over, everyone who did not fold shows their two cards with their best hand, and the winner is marked. Folded hands stay hidden.
