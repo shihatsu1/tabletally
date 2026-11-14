@@ -1,5 +1,7 @@
 # Stack recommendation
 
+> Research from build step 1 (2026-11-13). Later decisions changed some details: every table is now played in the app, history is read-only with a host "void last hand", and nothing is exported.
+
 Status: proposal for review. Nothing is scaffolded until you approve a stack.
 
 ## Requirements

@@ -5,7 +5,7 @@
   let seed = 1;
   const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
   const pick = (a) => a[Math.floor(rnd() * a.length)];
-  const TEXTS = ['', ' ', 'Ann', 'x'.repeat(30), '😀😀😀', 'عربى', 'a‏b', '-5', '0', '99999999999999', '1.5', 'NaN', '<b>x</b>', '"; drop', 'Ñandú', '\n', 'COMPUTER 1', 'A'.repeat(300)];
+  const TEXTS = ['', ' ', 'Abe', 'x'.repeat(30), '😀😀😀', 'عربى', 'a‏b', '-5', '0', '99999999999999', '1.5', 'NaN', '<b>x</b>', '"; drop', 'Ñandú', '\n', 'COMPUTER 1', 'A'.repeat(300)];
   const KEYLIKE = /(^|[\s(])((?:play|room|home|opt|tong|pusoy|poker|entry|hand|level|error|banner|rules|cur|nav|app|game|react|bot|history|clock|turn)\.[A-Za-z0-9_.-]+)(?=[\s).,:;!?]|$)/;
 
   function visible(el) {

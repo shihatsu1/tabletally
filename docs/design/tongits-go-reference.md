@@ -1,5 +1,7 @@
 # Tongits Go: what the app looks like, and what we borrowed
 
+> Update 2026-11-14: the private hand helper was removed with score-only tables. Its POINT box lives on as "Points in hand" on the Tong-its play screen; automatic grouping is no longer offered to players.
+
 Observed on 2026-11-13 by stepping through two public YouTube gameplay videos frame by frame. Nothing here is copied: these are descriptions in our own words, and every feature in TableTally is our own design and artwork.
 
 - "How to Play Tongits Go Tagalog Tutorial": <https://www.youtube.com/watch?v=qTeW96qf_70> (the main Tongits table)

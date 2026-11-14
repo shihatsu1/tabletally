@@ -118,6 +118,11 @@ describe('Pusoy Dos stress', () => {
     let moves = 0;
     for (const scoring of scorings) for (const deuce of deuces) for (const settlement of settlements) for (const startingHand of [13, 17]) for (const n of [2, 3, 4]) {
       const setup: PusoyDosSetup = { ...pusoyDos.defaultSetup(n), scoring, deuce, settlement, startingHand };
+      // a hand size the deck cannot deal to everyone is refused (4 x 17 > 52), and is never played
+      if (startingHand * n > 52) {
+        f.check(pusoyDos.validateSetup(setup, n).length > 0, () => `an undealable hand size was accepted: ${startingHand} x ${n}`);
+        continue;
+      }
       f.check(pusoyDos.validateSetup(setup, n).length === 0, () => `default-derived setup invalid: ${JSON.stringify(setup)} ${pusoyDos.validateSetup(setup, n)}`);
       const ids = ['A', 'B', 'C', 'D'].slice(0, n);
       const games = N(200);

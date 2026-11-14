@@ -13,7 +13,7 @@ const hashOf = (i: number): string => i.toString(16).padStart(64, '0');
 const HOST = hashOf(1);
 const GUESTS = range(8).map((i) => hashOf(100 + i));
 const STRANGER = hashOf(999);
-const NAMES = ['Ann', 'ann', ' Ann ', 'Ben', 'Cy', 'Di', '', '   ', 'x'.repeat(24), 'x'.repeat(25), 'x'.repeat(80), '😀', '😀😀😀😀😀😀😀😀😀😀😀😀😀', 'Ca\u0000t', 'Computer 1', 'COMPUTER 1', 'Ñandú', 'عربى', 'a‏b', '\n', 'tab\tname', '__proto__', 'constructor', 'null', '0', 'A  B   C'];
+const NAMES = ['Abe', 'abe', ' Abe ', 'Bo', 'Cy', 'Di', '', '   ', 'x'.repeat(24), 'x'.repeat(25), 'x'.repeat(80), '😀', '😀😀😀😀😀😀😀😀😀😀😀😀😀', 'Ca\u0000t', 'Computer 1', 'COMPUTER 1', 'Ñandú', 'عربى', 'a‏b', '\n', 'tab\tname', '__proto__', 'constructor', 'null', '0', 'A  B   C'];
 const FORBIDDEN_KEYS = ['hands', 'seats', 'stock', 'deck', 'sets', 'hole', 'eligible'];
 
 function hasKey(x: unknown, keys: string[], depth = 0): string | null {

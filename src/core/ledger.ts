@@ -3,7 +3,8 @@ import { assertAmount, MAX_AMOUNT } from './integer';
 
 /**
  * Append-only event log. State (rounds, totals, history) is always derived by replaying events,
- * so undo, edit-with-reason and the full history come for free and are identical on every phone.
+ * so voiding (undo), restoring and the full history come for free and are identical on every phone. The app
+ * records hands itself; `round.edit` stays supported by the ledger but nothing in the app sends it.
  */
 export type LedgerEvent<Input = unknown> =
   | { type: 'round.add'; id: string; at: number; by: string; input: Input }

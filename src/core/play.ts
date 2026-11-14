@@ -8,7 +8,7 @@ import type { Rng } from './rng';
  * - `validate` and `apply` get untrusted moves; `validate` must check types, not assume them.
  * - `viewFor` is the ONLY thing a phone or a bot ever sees. It must never include another player's hidden cards
  *   (a finished hand may reveal them).
- * - `result` turns a finished hand into the same round input the score-only entry screen produces, so the
+ * - `result` turns a finished hand into the game module's round input (what `score()` takes), so the
  *   existing ledger, totals, history and undo are reused unchanged.
  */
 export type BotLevel = 'easy' | 'normal' | 'hard';

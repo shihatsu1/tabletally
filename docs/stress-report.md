@@ -1,5 +1,7 @@
 # Stress-test report (2026-11-14)
 
+> Written on 2026-11-14, before score-only tables, hand helpers and the manual turn timer were removed. The fixes it lists still apply; mentions of those screens are historical.
+
 Everything ran locally (vitest, a local `wrangler dev`, the local Chrome tab). Seeds are fixed, so any failure replays exactly. Commands are in `CONTRIBUTING.md` (`npm run stress`, `node tools/stress.mjs`, `tools/stress/monkey.js`, `tools/stress/i18n-audit.mjs`).
 
 ## What was run
