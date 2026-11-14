@@ -2,6 +2,7 @@
 // Usage: node tools/smoke.mjs [baseUrl]
 import { randomBytes } from 'node:crypto';
 import http from 'node:http';
+import https from 'node:https';
 
 const base = process.argv[2] ?? 'http://localhost:8787';
 const wsBase = base.replace(/^http/, 'ws');
@@ -44,7 +45,7 @@ const latest = async (c, pred = isState) => c.next(pred);
 /** Status of a raw WebSocket upgrade request (fetch cannot send an Upgrade header). */
 const upgradeStatus = (path, origin) =>
   new Promise((resolve, reject) => {
-    const req = http.request(base + path, {
+    const req = (base.startsWith('https') ? https : http).request(base + path, {
       headers: {
         Connection: 'Upgrade',
         Upgrade: 'websocket',
