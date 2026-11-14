@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { gameUis } from '../games';
   import type { RoomView } from '../../shared/protocol';
   import { t } from '../lib/i18n.svelte';
@@ -39,22 +39,38 @@
 
   // Countdown for a turn that has a time limit. Only ticks while one is running.
   let now = $state(Date.now());
+  const deadline = $derived(play?.turnEndsAt ?? null);
+  let visibleTurnMs = $state(1);
   let ticker: ReturnType<typeof setInterval> | undefined;
   $effect(() => {
     clearInterval(ticker);
-    if (play?.turnEndsAt) {
+    if (deadline !== null) {
       now = Date.now();
-      ticker = setInterval(() => (now = Date.now()), 500);
+      // Start a fresh ring for each deadline, including when joining mid-turn.
+      visibleTurnMs = Math.max(1, deadline - (Date.now() + untrack(() => session.clockOffset)));
+      ticker = setInterval(() => (now = Date.now()), 100);
     }
     return () => clearInterval(ticker);
   });
   onDestroy(() => clearInterval(ticker));
-  const secondsLeft = $derived(play?.turnEndsAt ? Math.max(0, Math.ceil((play.turnEndsAt - (now + session.clockOffset)) / 1000)) : null);
+  const remainingMs = $derived(deadline === null ? null : Math.max(0, deadline - (now + session.clockOffset)));
+  const secondsLeft = $derived(remainingMs === null ? null : Math.ceil(remainingMs / 1000));
+  const ringOffset = $derived(100 * (1 - Math.min(1, (remainingMs ?? 0) / visibleTurnMs)));
   const clock = $derived(secondsLeft === null ? '' : secondsLeft >= 60 ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}` : `${secondsLeft}s`);
 </script>
 
 <div class="pt">
-  {#if secondsLeft !== null && !over}<span class="timer" class:low={secondsLeft <= 5} role="timer" aria-label={t('play.timeLeft', { t: clock })}>{clock}</span>{/if}
+  {#if secondsLeft !== null && !over}
+    <div class="timer" class:low={secondsLeft <= 5} role="timer" aria-label={t('play.timeLeft', { t: clock })}>
+      {#key deadline}
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <circle class="timer-track" cx="32" cy="32" r="28" />
+          <circle class="timer-ring" cx="32" cy="32" r="28" pathLength="100" stroke-dasharray="100 100" stroke-dashoffset={ringOffset} />
+        </svg>
+      {/key}
+      <span class="timer-number" aria-hidden="true">{secondsLeft}</span>
+    </div>
+  {/if}
   {#if canShowLast}<button type="button" class="ghost last" aria-expanded={showLast} onclick={() => (showLast = !showLast)}>{t('play.lastHand')}</button>{/if}
   {#if play?.unscored}<p class="error" role="alert">{t('play.unscored')}</p>{/if}
 
@@ -90,8 +106,22 @@
 
 <style>
   .pt { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
-  .timer { position: absolute; right: 0; top: -22px; font-family: var(--font-display); font-size: .85rem; color: var(--text-dim); }
-  .timer.low { color: #ffb79e; }
+  .timer { position: relative; align-self: center; flex: none; width: 64px; height: 64px; display: grid; place-items: center; color: var(--accent); }
+  .timer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); fill: none; stroke-width: 4; }
+  .timer-track { stroke: currentColor; opacity: .18; }
+  .timer-ring { stroke: currentColor; stroke-linecap: round; transition: stroke-dashoffset 100ms linear; }
+  .timer-number { font-family: var(--font-ui); font-size: 1.35rem; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+  .timer.low { color: var(--neg); animation: timer-pulse 1s ease-in-out infinite; }
+  .timer.low .timer-number { color: currentColor; }
+  @keyframes timer-pulse { 50% { filter: drop-shadow(0 0 5px currentColor); } }
+  @media (max-height: 700px) {
+    .timer { width: 52px; height: 52px; }
+    .timer-number { font-size: 1.1rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .timer.low { animation: none; }
+    .timer-ring { transition: none; }
+  }
   .last { position: absolute; left: 0; top: -24px; min-height: 0; padding: 2px 10px; font-size: .75rem; border-radius: 999px; z-index: 5; }
   .lastview { position: absolute; inset: 0; z-index: 9; display: flex; flex-direction: column; gap: 6px; background: var(--bg, #0b2f25); border-radius: 12px; }
   .lasthead { display: flex; justify-content: space-between; align-items: center; }
