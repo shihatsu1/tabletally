@@ -554,6 +554,7 @@ const en: Record<string, string> = {
   'error.bad_key': 'That host key does not match this table.',
   'error.already_seated': 'This phone already has another seat at this table.',
   'error.rate_limited': 'Too many tries. Wait a minute and try again.',
+  'room.qrAlt': 'QR code that opens table {code}',
 };
 
 const tl: Record<string, string> = {
@@ -863,6 +864,7 @@ const tl: Record<string, string> = {
   'error.bad_key': 'Hindi tugma ang susi ng host sa mesang ito.',
   'error.already_seated': 'May ibang upuan na ang phone na ito sa mesang ito.',
   'error.rate_limited': 'Sobrang dami ng subok. Maghintay ng isang minuto at subukan ulit.',
+  'room.qrAlt': 'QR code na nagbubukas ng mesa {code}',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en, tl };

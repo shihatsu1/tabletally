@@ -34,7 +34,7 @@
     --text-dim: #4a6b60;
     --line: color-mix(in srgb, #8a6a1f 60%, transparent);
     --accent: #7a5a12;
-    --pos: #0f7a4a;
+    --pos: #0b6b3f;
     --neg: #b93a14;
     color-scheme: light;
   }
@@ -97,6 +97,12 @@ label { display: block; font-size: .85rem; color: var(--text-dim); margin: .9em 
 .neg { color: var(--neg); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .error { color: var(--neg); margin: .6em 0; }
+/* A choice drawn as a card (radio or checkbox inside a label), used by the game setup screens. */
+.opt { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; color: var(--text); font-size: 1rem; }
+.opt.on { background: color-mix(in srgb, var(--brass) 16%, transparent); border-color: var(--brass); }
+.opt input { width: 20px; height: 20px; min-height: 0; margin-top: 3px; flex: none; }
+.opt small { display: block; }
+.opt.on small { color: var(--text); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }

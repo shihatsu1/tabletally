@@ -12,7 +12,10 @@
     let live = true;
     QRCode.toString(link, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#0b3b2e', light: '#f3e9d2' } })
       .then((s) => live && (svg = s))
-      .catch(() => live && (svg = ''));
+      .catch((e) => {
+        if (import.meta.env.DEV) console.warn('QR failed', e);
+        if (live) svg = '';
+      });
     return () => (live = false);
   });
 
@@ -21,15 +24,17 @@
       await navigator.clipboard.writeText(link);
       copied = true;
       setTimeout(() => (copied = false), 1500);
-    } catch {
-      /* clipboard blocked: the link is visible below anyway */
+    } catch (e) {
+      // clipboard blocked: the code is on screen anyway
+      if (import.meta.env.DEV) console.warn('copy failed', e);
     }
   }
 </script>
 
 <section class="card invite">
   <h2>{t('room.share')}</h2>
-  <div class="qr" aria-label={t('room.share')}>{@html svg}</div>
+  <!-- the QR is a picture of the link below; the svg comes from the qrcode library, never from user text -->
+  <div class="qr" role="img" aria-label={t('room.qrAlt', { code })}>{@html svg}</div>
   <p class="code" aria-label={t('room.codeLabel')}>{code}</p>
   <p class="dim">{t('room.seats', { n: seated, total })}</p>
   <button type="button" onclick={copy}>{copied ? t('room.copied') : t('room.copyLink')}</button>

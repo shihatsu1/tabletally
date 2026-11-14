@@ -98,16 +98,32 @@ export function playWin(): void {
   [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(c, t + i * 0.09, f, 0.22, 0.12, 'sine'));
 }
 
+/** The confetti: a main burst, then a smaller, wider one a moment later. */
+const CONFETTI = {
+  colors: ['#c9a24b', '#e3c77f', '#f3e9d2', '#e4572e'],
+  first: { particleCount: 90, spread: 75, startVelocity: 38, origin: { y: 0.65 } },
+  second: { particleCount: 40, spread: 100, origin: { y: 0.6 } },
+  secondAfterMs: 180,
+};
+let canvas: HTMLCanvasElement | null = null;
+
 /** Brass-coloured confetti burst for the round winner. Loaded on demand; skipped for reduced motion. */
 export async function confettiBurst(): Promise<void> {
   if (reducedMotion()) return;
   try {
     const { default: confetti } = await import('canvas-confetti');
-    const colors = ['#c9a24b', '#e3c77f', '#f3e9d2', '#e4572e'];
-    void confetti({ particleCount: 90, spread: 75, startVelocity: 38, origin: { y: 0.65 }, colors, disableForReducedMotion: true });
-    setTimeout(() => void confetti({ particleCount: 40, spread: 100, origin: { y: 0.6 }, colors, disableForReducedMotion: true }), 180);
-  } catch {
-    /* decoration only */
+    // Our own canvas, hidden from screen readers: it is decoration, not content.
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.setAttribute('aria-hidden', 'true');
+      canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60';
+      document.body.appendChild(canvas);
+    }
+    const fire = confetti.create(canvas, { resize: true, disableForReducedMotion: true });
+    void fire({ ...CONFETTI.first, colors: CONFETTI.colors });
+    setTimeout(() => void fire({ ...CONFETTI.second, colors: CONFETTI.colors }), CONFETTI.secondAfterMs);
+  } catch (e) {
+    if (import.meta.env.DEV) console.warn('confetti failed', e); // decoration only
   }
 }
 

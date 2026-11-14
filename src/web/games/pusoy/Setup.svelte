@@ -117,10 +117,6 @@
 <style>
   fieldset { border: 0; padding: 0; margin: 0; }
   legend { font-size: .85rem; color: var(--text-dim); padding: 0; margin-bottom: 6px; }
-  .opt { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; color: var(--text); font-size: 1rem; }
-  .opt.on { background: color-mix(in srgb, var(--brass) 16%, transparent); border-color: var(--brass); }
-  .opt input { width: auto; min-height: 0; margin-top: 4px; }
-  .opt small { display: block; }
   .check { display: flex; gap: 10px; align-items: center; margin-top: 16px; color: var(--text); font-size: 1rem; }
   .check input { width: auto; min-height: 0; }
   .indent { margin-left: 10px; padding-left: 12px; border-left: 2px solid var(--line); }

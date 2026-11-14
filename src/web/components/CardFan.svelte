@@ -22,24 +22,33 @@
   const RATIO = 1.4536; // card height / width
   const RADIUS = 3.2; // pivot distance below the hand, in card widths
   const LIFT = 0.2; // a selected card rises by this share of its width
+  // px of each card left showing at the card's centre line. Turned cards overlap more near the bottom, so this is
+  // set above WCAG's 24 px minimum target to keep every card's tappable strip at 24 px or more.
+  const MIN_STRIP = 32;
+  const MAX_DEG = 100;
 
   let W = $state(0);
   let H = $state(0);
   const n = $derived(cards.length);
-  const deg = $derived(n <= 1 ? 0 : (spread ?? Math.min(64, 6 + n * 4.5)));
+  const baseDeg = $derived(n <= 1 ? 0 : (spread ?? Math.min(64, 6 + n * 4.5)));
 
   const layout = $derived.by(() => {
     if (W === 0 || H === 0 || n === 0) return null;
-    const half = ((deg / 2) * Math.PI) / 180;
+    // Pickable fans open wider when needed so every card keeps a MIN_STRIP-wide strip to tap.
+    const stripDeg = (w: number): number => (onpick && n > 1 && baseDeg > 0 ? Math.min(MAX_DEG, ((MIN_STRIP / (w * RADIUS)) * 180 / Math.PI) * (n - 1)) : 0);
+    let deg = Math.max(baseDeg, stripDeg(maxW));
+    let half = ((deg / 2) * Math.PI) / 180;
     // Height used by one card width: the card, the arc's drop at the edges, the turned corner, and the lift.
-    const perW = RATIO + RADIUS * (1 - Math.cos(half)) + 0.5 * Math.sin(half) + (RATIO / 2) * (1 - Math.cos(half)) + LIFT;
-    let cw = Math.min(maxW, (H - 4) / perW);
-    // Width: the arc's chord plus the outer cards' turned edges.
+    const perW = (h: number): number => RATIO + RADIUS * (1 - Math.cos(h)) + 0.5 * Math.sin(h) + (RATIO / 2) * (1 - Math.cos(h)) + LIFT;
+    let cw = Math.min(maxW, (H - 4) / perW(half));
+    // Shrink until the hand fits both ways: the arc's chord plus the outer cards' turned edges, and the height.
     for (let k = 0; k < 60; k++) {
+      deg = Math.max(baseDeg, stripDeg(cw));
+      half = ((deg / 2) * Math.PI) / 180;
       const span = 2 * RADIUS * cw * Math.sin(half) + cw * Math.cos(half) + cw * RATIO * Math.sin(half);
       // A flat row (spread 0) still overlaps so a corner of each card shows.
-      const flat = deg === 0 ? cw + (n - 1) * cw * 0.34 : 0;
-      if (Math.max(span, flat) <= W - 4) break;
+      const flat = deg === 0 ? cw + (n - 1) * Math.max(cw * 0.34, onpick ? MIN_STRIP : 0) : 0;
+      if (Math.max(span, flat) <= W - 4 && cw * perW(half) <= H - 4) break;
       cw *= 0.95;
     }
     const ch = cw * RATIO;
