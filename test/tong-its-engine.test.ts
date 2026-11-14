@@ -3,6 +3,7 @@ import { mixSeed } from '../src/core/rng';
 import { BOT_LEVELS, type BotLevel } from '../src/core/play';
 import { makeCard } from '../src/games/cards';
 import { tongIts, type TongItsSetup } from '../src/games/tong-its';
+import { bestDeadwood } from '../src/games/tong-its/hand';
 import { canSapaw, handPoints, keepsDiscardMeld, meldKind, meldsContaining, tongItsEngine as E, type TiMove, type TiState } from '../src/games/tong-its/engine';
 
 const C = (suit: 'S' | 'H' | 'D' | 'C', rank: number) => makeCard('SHDC'.indexOf(suit), rank);
@@ -108,7 +109,7 @@ describe('a turn', () => {
 
   it('lays off onto any shown meld, and a fourth card drawn from the stock onto your own set is a sagasa', () => {
     let s = base({
-      hands: { A: [C('C', 7), C('S', 3)], B: [C('S', 1)], C: [C('S', 2)] },
+      hands: { A: [C('S', 3), C('H', 12)], B: [C('S', 1)], C: [C('S', 2)] },
       melds: [{ id: 1, owner: 'A', kind: 'set', cards: [C('S', 7), C('H', 7), C('D', 7)], hidden: false }, { id: 2, owner: 'B', kind: 'run', cards: [C('S', 4), C('S', 5), C('S', 6)], hidden: false }],
       nextMeld: 3,
       stock: [C('C', 7)],
@@ -135,7 +136,7 @@ describe('how a hand ends', () => {
   it('Tong-its: using every card wins, and the result is scoreable (aces, secret set)', () => {
     let s = base({ hands: { A: [C('S', 9), C('H', 9), C('D', 9), C('C', 9), C('S', 1), C('H', 1), C('D', 1)], B: [C('S', 5)], C: [C('S', 6)] }, phase: 'play', drew: 'stock' });
     s = ok(s, 'A', { t: 'meld', cards: [C('S', 9), C('H', 9), C('D', 9), C('C', 9)], hidden: true });
-    s = ok(s, 'A', { t: 'meld', cards: [C('S', 1), C('H', 1), C('D', 1)] });
+    // the A A A left in hand count 0 points, so the hand is over at once (no need to lay them down)
     expect(s.phase).toBe('over');
     const r = E.result(s)!;
     expect(r).toEqual({ winner: 'A', ending: 'tongits', burned: ['B', 'C'], aces: 3, secrets: 1 });
@@ -144,6 +145,42 @@ describe('how a hand ends', () => {
     const net = tongIts.score(setup, players, input);
     expect(Object.values(net).reduce((a, b) => a + b, 0)).toBe(0);
     expect(net.A).toBeGreaterThan(0);
+  });
+
+  it('a hand worth 0 points wins at once as a Tong-its: after a draw, after a discard, and when your turn starts', () => {
+    // drawing the 4 of spades turns 2-3 of spades + 7-7-7 into two melds: 0 points
+    let s = base({ hands: { A: [C('S', 2), C('S', 3), C('S', 7), C('H', 7), C('D', 7)], B: [C('S', 13)], C: [C('S', 12)] }, stock: [C('S', 4)] });
+    s = ok(s, 'A', { t: 'draw', from: 'stock' });
+    expect(s.end).toEqual({ winner: 'A', ending: 'tongits' });
+    // discarding the one loose card leaves 5-6-7 of hearts: 0 points
+    let d = base({ hands: { A: [C('H', 5), C('H', 6), C('H', 7), C('C', 13)], B: [C('S', 13)], C: [C('S', 12)] }, phase: 'play', drew: 'stock' });
+    d = ok(d, 'A', { t: 'discard', card: C('C', 13) });
+    expect(d.end).toEqual({ winner: 'A', ending: 'tongits' });
+    // B already holds 9-9-9 when A's turn ends: B wins as their turn starts
+    let n = base({ hands: { A: [C('H', 2), C('C', 13)], B: [C('S', 9), C('H', 9), C('D', 9)], C: [C('S', 12)] }, phase: 'play', drew: 'stock' });
+    n = ok(n, 'A', { t: 'discard', card: C('C', 13) });
+    expect(n.end).toEqual({ winner: 'B', ending: 'tongits' });
+    expect(E.result(n)).toMatchObject({ winner: 'B', ending: 'tongits' });
+  });
+
+  it('at an automatic Tong-its, a four of a kind still in hand counts as a secret set and a 5+ run as a long run', () => {
+    // holding 9-9-9-9 and two aces, drawing the third ace makes 0 points
+    let s = base({ hands: { A: [C('S', 9), C('H', 9), C('D', 9), C('C', 9), C('S', 1), C('H', 1)], B: [C('S', 13)], C: [C('S', 12)] }, stock: [C('D', 1)] });
+    s = ok(s, 'A', { t: 'draw', from: 'stock' });
+    expect(E.result(s)).toMatchObject({ winner: 'A', ending: 'tongits', secrets: 1, aces: 3 });
+    // 3-4-5-6-7 of clubs plus K-K-K: one long run, no secret
+    let r = base({ hands: { A: [C('C', 3), C('C', 4), C('C', 5), C('C', 6), C('S', 13), C('H', 13), C('D', 13)], B: [C('S', 12)], C: [C('H', 12)] }, stock: [C('C', 7)] });
+    r = ok(r, 'A', { t: 'draw', from: 'stock' });
+    expect(E.result(r)).toMatchObject({ winner: 'A', ending: 'tongits', longRuns: 1 });
+    expect(E.result(r)!.secrets).toBeUndefined();
+  });
+
+  it('a dealt hand never starts already over unless the dealer counts 0 points', () => {
+    for (let seed = 0; seed < 300; seed++) {
+      const st = E.start(setup, players, seed);
+      if (st.phase === 'over') expect(st.end).toEqual({ winner: st.turn, ending: 'tongits' });
+      else expect(bestDeadwood(st.hands[st.turn]!)).toBeGreaterThan(0);
+    }
   });
 
   it('going out by discarding your last card also ends the hand', () => {

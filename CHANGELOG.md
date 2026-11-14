@@ -24,6 +24,7 @@ All notable changes to TableTally. Dates are in Asia/Tokyo. Codes in brackets ar
 - The pot is shown on the table next to the stock and discard pile, in the room's unit with the chip count.
 - When your time runs out, the rest of your turn is played for you: draw from the stock, show a taken discard's meld if needed, then discard your highest card that is not in a suggested meld. The clock no longer starts again on the same turn.
 - Each suggested meld chip has a ✓ that lays that meld down on your turn, next to the ✕.
+- A hand worth 0 points (every card fits a meld) wins at once as a Tong-its, for people and computer players alike. Melds still in the winner's hand count as if laid down (a four of a kind as a secret set, a run of five or more as a long run).
 - Each suggested meld has a chip above the hand; tap its ✕ to put those cards back among the others, and "Group again" to undo.
 
 ### Every game the same

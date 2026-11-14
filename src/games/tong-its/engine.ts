@@ -190,7 +190,7 @@ function start(_setup: TongItsSetup, players: readonly string[], seed: number | 
     hands[id] = deck.slice(at, at + n).sort((a, b) => a - b);
     at += n;
   }
-  return {
+  const dealt: TiState = {
     players: [...players],
     hands,
     stock: deck.slice(at),
@@ -209,6 +209,8 @@ function start(_setup: TongItsSetup, players: readonly string[], seed: number | 
     drawBlocked: [],
     end: null,
   };
+  // the dealer opens with 13 cards; if they already count 0 points, that is a Tong-its straight away
+  return zeroPoints(hands[dealer] as Card[]) ? finish(dealt, dealer, 'tongits') : dealt;
 }
 
 function validate(s: TiState, pid: string, raw: unknown): string[] {
@@ -301,6 +303,12 @@ function finish(s: TiState, winner: string, ending: Ending): TiState {
   return { ...s, phase: 'over', end: { winner, ending }, fight: null };
 }
 
+/**
+ * A hand that counts 0 points (every card in it fits a meld) wins at once as a Tong-its, without having to lay
+ * the melds down (the user's group rule, 2026-11-14). Checked after each of your moves and when your turn starts.
+ */
+const zeroPoints = (cards: readonly Card[]): boolean => cards.length > 0 && cards.length <= 14 && bestDeadwood(cards) === 0;
+
 /** Lowest total wins. `order` lists the contenders from the one who wins ties to the one who loses them. */
 function lowest(s: TiState, order: readonly string[]): string {
   return order.reduce((a, b) => (handPoints(s.hands[b] as Card[]) < handPoints(s.hands[a] as Card[]) ? b : a));
@@ -354,14 +362,14 @@ function apply(state: TiState, pid: string, move: TiMove): TiState {
         s.mustMeld = card;
       }
       s.phase = 'play';
-      return s;
+      return zeroPoints(s.hands[pid] as Card[]) ? finish(s, pid, 'tongits') : s;
     }
     case 'meld': {
       const kind = meldKind(move.cards) as MeldKind;
       s.hands[pid] = without(s.hands[pid] as Card[], move.cards);
       s.melds.push({ id: s.nextMeld++, owner: pid, kind, cards: [...move.cards].sort((a, b) => (kind === 'run' ? rankOf(a) - rankOf(b) : a - b)), hidden: move.hidden === true });
       if (s.mustMeld !== null && move.cards.includes(s.mustMeld)) s.mustMeld = null;
-      return (s.hands[pid] as Card[]).length === 0 ? finish(s, pid, 'tongits') : s;
+      return (s.hands[pid] as Card[]).length === 0 || zeroPoints(s.hands[pid] as Card[]) ? finish(s, pid, 'tongits') : s;
     }
     case 'sapaw': {
       const meld = s.melds.find((x) => x.id === move.meld) as TiMeld;
@@ -371,14 +379,14 @@ function apply(state: TiState, pid: string, move: TiMove): TiState {
       // Laying off onto an opponent's meld stops them calling Draw on their next turn.
       if (meld.owner !== pid && !(s.drawBlocked as string[]).includes(meld.owner)) (s.drawBlocked as string[]).push(meld.owner);
       if (s.mustMeld === move.card) s.mustMeld = null;
-      return (s.hands[pid] as Card[]).length === 0 ? finish(s, pid, 'tongits') : s;
+      return (s.hands[pid] as Card[]).length === 0 || zeroPoints(s.hands[pid] as Card[]) ? finish(s, pid, 'tongits') : s;
     }
     case 'discard': {
       s.hands[pid] = without(s.hands[pid] as Card[], [move.card]);
       s.discards.push(move.card);
       // Your turn is over, so a block from an earlier sapaw has been served.
       s.drawBlocked = (s.drawBlocked as string[]).filter((id) => id !== pid);
-      if ((s.hands[pid] as Card[]).length === 0) return finish(s, pid, 'tongits');
+      if ((s.hands[pid] as Card[]).length === 0 || zeroPoints(s.hands[pid] as Card[])) return finish(s, pid, 'tongits');
       if (s.stockOut) return endByStock(s);
       const i = s.players.indexOf(pid);
       s.turn = s.players[(i + 1) % s.players.length] as string;
@@ -387,7 +395,8 @@ function apply(state: TiState, pid: string, move: TiMove): TiState {
       s.drawnCard = null;
       s.mustMeld = null;
       s.firstTurn = false;
-      return s;
+      // the next player may already be holding a hand worth 0 points
+      return zeroPoints(s.hands[s.turn] as Card[]) ? finish(s, s.turn, 'tongits') : s;
     }
     case 'fight': {
       s.phase = 'fight';
@@ -446,8 +455,24 @@ function result(s: TiState): Record<string, unknown> | null {
   const burned = s.players.filter((id) => id !== winner && !openedBy(s, id));
   if (burned.length > 0) input.burned = burned;
   const aces = [...(s.hands[winner] as Card[]), ...mine.flatMap((m) => m.cards)].filter((c) => rankOf(c) === 1).length;
-  const secrets = mine.filter((m) => m.hidden).length;
-  const longRuns = mine.filter((m) => m.kind === 'run' && m.cards.length >= 5).length;
+  let secrets = mine.filter((m) => m.hidden).length;
+  let longRuns = mine.filter((m) => m.kind === 'run' && m.cards.length >= 5).length;
+  // An automatic Tong-its (0 points) can end the hand while melds are still in the winner's hand. They count as
+  // if laid down: a four of a kind never shown is a secret set, and a run of five or more is a long run. Of the
+  // ways to group the hand, the one with the most of these is used.
+  const held = s.hands[winner] as Card[];
+  if (ending === 'tongits' && held.length > 0) {
+    const ways = organize(held, 20).filter((a) => a.points === 0);
+    const bonus = (a: (typeof ways)[number]) => ({
+      secrets: a.melds.filter((m) => m.kind === 'set' && m.cards.length === 4).length,
+      longRuns: a.melds.filter((m) => m.kind === 'run' && m.cards.length >= 5).length,
+    });
+    const best = ways.map(bonus).sort((x, y) => y.secrets + y.longRuns - (x.secrets + x.longRuns) || y.secrets - x.secrets)[0];
+    if (best) {
+      secrets += best.secrets;
+      longRuns += best.longRuns;
+    }
+  }
   const sagasa = s.sagasa[winner] ?? 0;
   if (aces > 0) input.aces = aces;
   if (secrets > 0) input.secrets = secrets;
