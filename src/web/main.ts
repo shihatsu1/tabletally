@@ -1,5 +1,7 @@
 import { mount } from 'svelte';
 import App from './App.svelte';
+import '@fontsource-variable/fraunces/soft.css';
+import '@fontsource-variable/bricolage-grotesque/wght.css';
 import './theme.css';
 
 mount(App, { target: document.getElementById('app')! });

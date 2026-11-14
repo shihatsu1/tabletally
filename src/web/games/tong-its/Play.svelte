@@ -121,7 +121,8 @@
   .row, .status { flex: none; }
   .hand { flex: 1 1 0; min-height: 120px; max-height: 340px; }
   .points { align-self: flex-end; font-size: .78rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--accent); }
-  .status { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: .85rem; line-height: 1.25; }
+  .status { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: var(--step--1); line-height: 1.3; }
+  .status strong { font-family: var(--font-display); font-weight: 800; font-size: 1.05em; color: var(--accent); }
   .status.mine { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 14%, transparent); }
   .mat { padding: 6px 8px; border-radius: 12px; border: 1px dashed var(--line); display: flex; flex-direction: column; gap: 6px; flex: 0 1 auto; min-height: 0; overflow: hidden; }
   .piles { display: flex; gap: 22px; justify-content: center; align-items: center; }

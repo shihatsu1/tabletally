@@ -43,11 +43,11 @@
 <style>
   main { max-width: 520px; margin: 0 auto; padding: 10px 0 40px; }
   nav { margin-top: 6px; }
-  nav a { font-family: var(--font-display); color: var(--accent); text-decoration: none; font-weight: 700; }
+  nav a { font-family: var(--font-display); font-variation-settings: 'SOFT' 100; color: var(--accent); text-decoration: none; font-weight: 800; font-size: var(--step-1); text-shadow: var(--sign-shadow); }
   .brand { display: inline-flex; align-items: center; min-height: 44px; }
   nav select { width: auto; min-height: 44px; }
   nav { flex-wrap: wrap; }
   .tog { min-height: 44px; padding: .3em .8em; font-size: .85rem; }
   .tog[aria-pressed='true'] { border-color: var(--pos); color: var(--pos); }
-  footer { font-size: .8rem; margin-top: 28px; text-align: center; }
+  footer { font-size: var(--step--2); margin: 28px auto 0; text-align: center; max-width: 42ch; line-height: 1.5; }
 </style>

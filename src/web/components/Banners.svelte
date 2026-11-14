@@ -13,14 +13,16 @@
 <style>
   .stage { position: fixed; left: 0; right: 0; top: 30%; z-index: 50; display: flex; justify-content: center; pointer-events: none; }
   .banner {
-    font-family: var(--font-display); font-weight: 800; font-size: clamp(1.4rem, 6.5vw, 2.4rem); letter-spacing: .04em; text-align: center;
-    padding: .25em .7em; border-radius: 18px; max-width: 92vw; line-height: 1.1;
-    color: #1d1608; background: linear-gradient(180deg, #f3e0a0, #c9a24b); border: 3px solid #fff3c4;
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--brass) 40%, transparent), 0 14px 50px rgba(0,0,0,.55), 0 0 60px rgba(201,162,75,.6);
+    /* a jeepney sign: a brass plate, heavy soft serif, a hard offset shadow instead of a glow */
+    font-family: var(--font-display); font-variation-settings: 'SOFT' 100; font-weight: 900; font-size: clamp(1.5rem, 7vw, 2.5rem);
+    letter-spacing: .02em; text-align: center; padding: .2em .65em .25em; border-radius: 14px; max-width: 92vw; line-height: 1.05;
+    color: #1d1608; background: linear-gradient(180deg, #f6dc98, #d4a548 70%, #b98a2e); border: 3px solid #fff1c2;
+    text-shadow: 1px 1px 0 rgba(255, 241, 194, .7);
+    box-shadow: 5px 5px 0 var(--felt-950), 0 14px 40px rgba(0,0,0,.5);
     animation: slam 1.2s cubic-bezier(.2, 1.3, .4, 1) both;
   }
-  .banner.bad { color: #fff; background: linear-gradient(180deg, #ff8a5c, #c63a14); border-color: #ffd2bf; box-shadow: 0 0 0 6px rgba(228,87,46,.35), 0 14px 50px rgba(0,0,0,.55), 0 0 60px rgba(228,87,46,.6); }
-  .banner.info { color: var(--text); background: var(--bg-raised); border-color: var(--brass); box-shadow: 0 14px 50px rgba(0,0,0,.5); font-size: clamp(1.2rem, 5.5vw, 1.9rem); }
+  .banner.bad { color: #fff7ee; background: linear-gradient(180deg, #f07a5c, #c83c1e); border-color: #ffd8c8; text-shadow: 2px 2px 0 #6e1a08; }
+  .banner.info { color: var(--cream); background: var(--felt-700); border-color: var(--brass); text-shadow: var(--sign-shadow); font-size: clamp(1.25rem, 5.5vw, 1.9rem); }
   @keyframes slam {
     0% { transform: scale(.4) rotate(-6deg); opacity: 0; }
     18% { transform: scale(1.12) rotate(2deg); opacity: 1; }

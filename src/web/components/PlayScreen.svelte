@@ -135,8 +135,9 @@
   }
   .base { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
   header { display: flex; align-items: center; gap: 6px; min-height: 36px; }
-  .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .95rem; }
-  .title small { font-size: .72rem; }
+  .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--step-0); }
+  .title strong { font-family: var(--font-display); font-variation-settings: 'SOFT' 100; font-weight: 800; font-size: var(--step-1); color: var(--accent); text-shadow: var(--sign-shadow); }
+  .title small { font-size: var(--step--2); font-weight: 500; }
   .status { flex: none; font-size: .75rem; color: #ffb79e; white-space: nowrap; }
   .status::before { content: ''; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--coral, #e4572e); margin-right: 4px; vertical-align: middle; }
   .status.live::before { background: var(--pos, #6fd49a); margin-right: 0; }

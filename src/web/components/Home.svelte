@@ -141,10 +141,10 @@
   .hero { text-align: center; margin: 14px 0 6px; }
   .hero h1 { margin: 0; line-height: 0; }
   .hero img { width: min(64vw, 260px); height: auto; border-radius: 22px; }
-  .hero p { margin: 8px 0 0; font-family: var(--font-display); font-size: 1.1rem; }
+  .hero p { margin: 10px auto 0; font-family: var(--font-display); font-variation-settings: 'SOFT' 100; font-weight: 500; font-style: normal; font-size: var(--step-1); line-height: 1.3; max-width: 26ch; color: var(--text); }
   .opts { border: 1px solid var(--line); border-radius: 12px; margin: 16px 0 0; padding: 4px 14px 14px; }
   .opts legend { font-size: .85rem; color: var(--text-dim); padding: 0 6px; }
   .small { margin: 6px 0 0; font-size: .85rem; }
   .warn { margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--neg); font-size: .9rem; }
-  .code { text-transform: uppercase; letter-spacing: .3em; font-family: var(--font-display); font-size: 1.3rem; }
+  .code { text-transform: uppercase; letter-spacing: .28em; font-family: var(--font-display); font-weight: 700; font-variant-numeric: lining-nums; font-size: var(--step-1); }
 </style>

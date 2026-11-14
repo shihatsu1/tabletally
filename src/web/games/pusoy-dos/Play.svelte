@@ -80,7 +80,8 @@
 <style>
   .pd { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
   .row, .status { flex: none; }
-  .status { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: .85rem; line-height: 1.25; }
+  .status { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: var(--step--1); line-height: 1.3; }
+  .status strong { font-family: var(--font-display); font-weight: 800; font-size: 1.05em; color: var(--accent); }
   .status.mine { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 14%, transparent); }
   .mat { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border-radius: 12px; border: 1px dashed var(--line); min-height: 90px; justify-content: center; flex: 0 1 150px; overflow: hidden; }
   .pile { width: 70%; flex: 1 1 auto; min-height: 60px; }

@@ -77,7 +77,7 @@
   .seat.turn { box-shadow: 0 0 0 2px var(--brass-soft, var(--brass)); animation: glow 1.4s ease-in-out infinite; }
   .top { grid-area: top; display: flex; align-items: center; gap: 3px; min-width: 0; }
   .crown { color: var(--brass-soft); display: inline-flex; }
-  .name { flex: 1; min-width: 0; font-size: .74rem; font-weight: 700; color: var(--cream, #f3e9d2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .name { flex: 1; min-width: 0; font-size: .78rem; font-weight: 650; letter-spacing: .005em; color: var(--cream, #f3e9d2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .dealer { flex: none; width: 15px; height: 15px; border-radius: 50%; background: var(--cream); color: #1d1608; font-size: .62rem; font-weight: 800; display: grid; place-items: center; }
   .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: #777; }
   .dot.on { background: var(--mint, #6fd49a); }
@@ -85,9 +85,9 @@
   .backs { position: relative; width: 26px; height: 18px; flex: none; }
   .back { position: absolute; left: calc(50% - 6px + var(--k) * 3px); bottom: 0; width: 12px; height: 17px; border-radius: 2px; border: 1px solid var(--brass); transform: rotate(calc(var(--k) * 9deg)); transform-origin: 50% 130%;
     background: repeating-linear-gradient(45deg, rgba(201,162,75,.5) 0 1.5px, transparent 1.5px 4px), var(--felt-800); }
-  .cnt { font-size: .85rem; color: var(--cream); font-variant-numeric: tabular-nums; }
+  .cnt { font-family: var(--font-display); font-weight: 800; font-size: .95rem; color: var(--cream); font-variant-numeric: lining-nums tabular-nums; }
   .live small { font-size: .66rem; color: var(--cream-dim, #cfc4aa); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .total { grid-area: total; font-size: .78rem; color: var(--cream-dim); }
+  .total { grid-area: total; font-size: .9rem; color: var(--cream-dim); }
   .total.pos { color: #7fe0a8; }
   .total.neg { color: #ff9a78; }
   .delta { position: absolute; left: 50%; top: -14px; transform: translateX(-50%); font-weight: 800; font-size: 1rem; text-shadow: 0 2px 6px rgba(0,0,0,.8); animation: rise 3.5s ease-out forwards; pointer-events: none; z-index: 3; }

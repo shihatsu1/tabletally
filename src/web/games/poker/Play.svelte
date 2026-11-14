@@ -111,11 +111,12 @@
   .hole { flex: 1 1 0; min-height: 90px; max-height: 190px; }
   .holefan { width: min(240px, 100%); height: 100%; margin: 0 auto; }
   .holefan.folded { opacity: .5; }
-  .status { flex: none; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: .85rem; line-height: 1.25; }
+  .status { flex: none; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: var(--step--1); line-height: 1.3; }
+  .status strong { font-family: var(--font-display); font-weight: 800; font-size: 1.05em; color: var(--accent); }
   .status.mine { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 14%, transparent); }
   .felt { padding: 8px; border-radius: 14px; border: 1px solid var(--line); background: radial-gradient(ellipse at 50% 40%, var(--felt-600, #1b6a50), var(--felt-700, #135340) 60%, var(--felt-900, #0b2f25)); display: flex; flex-direction: column; align-items: center; gap: 6px; }
   .info { display: flex; gap: 10px; align-items: baseline; color: var(--cream, #f3e9d2); }
-  .pot strong { font-size: 1.15rem; }
+  .pot strong { font-family: var(--font-display); font-weight: 800; font-size: var(--step-2); font-variant-numeric: lining-nums; text-shadow: var(--sign-shadow); }
   .board { display: flex; gap: 4px; justify-content: center; }
   .empty { border-radius: 6px; border: 1px dashed rgba(243,233,210,.35); }
   .reveal { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; width: 100%; color: var(--cream, #f3e9d2); }

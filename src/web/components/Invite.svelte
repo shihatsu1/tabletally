@@ -45,5 +45,5 @@
   .invite { text-align: center; }
   .qr { width: min(70vw, 280px); margin: 0 auto 8px; border-radius: 12px; overflow: hidden; background: #f3e9d2; }
   .qr :global(svg) { display: block; width: 100%; height: auto; }
-  .code { font-family: var(--font-display); font-size: 2.4rem; letter-spacing: .25em; margin: .2em 0; color: var(--accent); }
+  .code { font-family: var(--font-display); font-variation-settings: 'SOFT' 100; font-weight: 800; font-variant-numeric: lining-nums; font-size: var(--step-4); letter-spacing: .14em; margin: .15em 0; color: var(--accent); text-shadow: 3px 3px 0 var(--felt-950); }
 </style>
