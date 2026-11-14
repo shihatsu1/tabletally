@@ -102,8 +102,46 @@
     return '';
   });
   // However many melds there are, they shrink to fit; the hand and the buttons below are never squeezed out.
-  const meldCards = $derived(view.melds.reduce((a, m) => a + m.size, 0));
-  const meldSize = $derived(meldCards <= 10 ? 24 : meldCards <= 18 ? 18 : 14);
+  // Shown melds are drawn as large as the space allows: the cards of a meld overlap like a held hand (each shows its
+  // corner), every player's melds wrap onto as few lines as fit, and the size is the largest at which all the lines
+  // fit the height the table area has left for them (the table and your hand share the free height).
+  const MELD_SHOW = 0.42; // share of a card's width left showing beside the next card
+  const NAME_W = 58;
+  let meldsW = $state(320);
+  let meldsH = $state(120);
+  const canAdd = (m: TiView['melds'][number]): boolean =>
+    myTurn && view.phase === 'play' && one !== null && !m.hidden && canSapaw(m.kind, m.cards, one) && allowed([one]);
+  const meldSize = $derived.by(() => {
+    const budget = meldsH;
+    const width = (m: TiView['melds'][number], cw: number): number =>
+      (m.cards.length === 0 ? 86 : cw * (1 + (m.cards.length - 1) * MELD_SHOW)) + (canAdd(m) ? 36 : 0);
+    // Lines the melds take at card width cw, wrapping exactly as the flex row does: each player's row starts with
+    // the name (NAME_W), items are 8 px apart, and an item that does not fit starts a new full-width line.
+    // A meld wider than the whole area can never fit, so that size is rejected.
+    const linesAt = (cw: number): number => {
+      let lines = 0;
+      for (const o of byOwner) {
+        let used = NAME_W;
+        lines++;
+        for (const m of o.melds) {
+          const w = width(m, cw);
+          if (w > meldsW) return Infinity;
+          if (used + 8 + w > meldsW) {
+            lines++;
+            used = w;
+          } else used += 8 + w;
+        }
+      }
+      return lines;
+    };
+    // a line is as tall as its cards, or the 32 px + (lay off) button when that is taller
+    const anyAdd = view.melds.some(canAdd);
+    for (let cw = 44; cw > 14; cw -= 2) {
+      const n = linesAt(cw);
+      if (n * Math.max(cw * 1.4536, anyAdd ? 32 : 0) + (n - 1) * 3 <= budget) return cw;
+    }
+    return 14;
+  });
   // Points the cards in hand would count if the hand ended now (the lowest after the best melds).
   const points = $derived(view.hand.length > 0 && view.hand.length <= 13 ? bestDeadwood(view.hand) : null);
   /**
@@ -199,7 +237,7 @@
         </span>
       {/if}
     </div>
-    <div class="melds">
+    <div class="melds" bind:clientWidth={meldsW} bind:clientHeight={meldsH} style="--show: {MELD_SHOW}">
       {#each byOwner as o (o.id)}
         <div class="owner">
           <span class="dim small name">{nameOf(o.id)}</span>
@@ -207,8 +245,8 @@
             <span class="meld">
               {#if m.cards.length === 0}<span class="dim small">{t('tong.play.hiddenSet', { n: m.size })}</span>{/if}
               {#each m.cards as c (c)}<PlayingCard card={c} size={meldSize} />{/each}
-              {#if myTurn && view.phase === 'play' && one !== null && !m.hidden && canSapaw(m.kind, m.cards, one) && allowed([one])}
-                <button type="button" class="add" aria-label={t('tong.play.layoff')} onclick={() => send({ t: 'sapaw', meld: m.id, card: one })}>+</button>
+              {#if canAdd(m)}
+                <button type="button" class="add" aria-label={t('tong.play.layoff')} onclick={() => one !== null && send({ t: 'sapaw', meld: m.id, card: one })}>+</button>
               {/if}
             </span>
           {/each}
@@ -282,7 +320,7 @@
   .status { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: var(--step--1); line-height: 1.3; }
   .status strong { font-family: var(--font-display); font-weight: 800; font-size: 1.05em; color: var(--accent); }
   .status.mine { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 14%, transparent); }
-  .mat { padding: 6px 8px; border-radius: 12px; border: 1px dashed var(--line); display: flex; flex-direction: column; gap: 6px; flex: 0 1 auto; min-height: 0; overflow: hidden; }
+  .mat { padding: 6px 8px; border-radius: 12px; border: 1px dashed var(--line); display: flex; flex-direction: column; gap: 6px; flex: 1.6 1 0; min-height: 0; overflow: hidden; }
   .piles { display: flex; gap: clamp(8px, 4vw, 22px); justify-content: center; align-items: center; min-width: 0; }
   .pile { display: inline-flex; gap: 6px; align-items: center; }
   /* on narrow phones the pile names go above the piles, so stock, discard and pot fit in one row */
@@ -313,11 +351,14 @@
   .stock.live:active { transform: translateY(1px); }
   @keyframes stock-glow { 50% { filter: drop-shadow(0 0 10px var(--brass)); } }
   @media (prefers-reduced-motion: reduce) { .stock.live { animation: none; } }
-  .melds { display: flex; flex-direction: column; gap: 3px; }
-  .owner { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
-  .name { min-width: 4.5em; max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* fills what is left of the table area; its height decides how big the meld cards can be */
+  .melds { flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 3px; }
+  .owner { display: flex; flex-wrap: wrap; gap: 3px 8px; align-items: center; }
+  /* a fixed width that the meld-size estimate (NAME_W) relies on */
+  .name { flex: none; width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .meld { display: inline-flex; gap: 0; align-items: center; }
-  .meld > :global(* + *) { margin-left: -3px; }
+  /* each card covers most of the one before it, leaving its corner showing */
+  .meld > :global(.card + .card) { margin-left: calc(var(--cw) * (var(--show) - 1)); }
   .add { min-height: 0; width: 32px; height: 32px; padding: 0; border-radius: 50%; margin-left: 3px; font-weight: 800; }
   .small { font-size: .75rem; }
   .reveal { display: flex; flex-direction: column; gap: 2px; }
