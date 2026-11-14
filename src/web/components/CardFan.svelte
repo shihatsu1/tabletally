@@ -39,7 +39,7 @@
     let deg = Math.max(baseDeg, stripDeg(maxW));
     let half = ((deg / 2) * Math.PI) / 180;
     // Height used by one card width: the card, the arc's drop at the edges, the turned corner, and the lift.
-    const perW = (h: number): number => RATIO + RADIUS * (1 - Math.cos(h)) + 0.5 * Math.sin(h) + (RATIO / 2) * (1 - Math.cos(h)) + LIFT;
+    const perW = (h: number): number => RATIO + RADIUS * (1 - Math.cos(h)) + 0.5 * Math.sin(h) + (RATIO / 2) * (1 - Math.cos(h)) + (onpick ? LIFT : 0); // only a pickable hand lifts a card
     let cw = Math.min(maxW, (H - 4) / perW(half));
     // Shrink until the hand fits both ways: the arc's chord plus the outer cards' turned edges, and the height.
     for (let k = 0; k < 60; k++) {

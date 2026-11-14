@@ -10,9 +10,10 @@ All notable changes to TableTally. Dates are in Asia/Tokyo. Codes in brackets ar
 - History numbers hands by position, so a voided hand never leaves a gap [C05].
 
 ### Turn timer and Pusoy rows
-- Time per turn is now a toggle with the same choices in every game: No limit, 1, 2 or 3 minutes. The time is exactly what you pick; Pusoy used to multiply it by six (30 seconds became 3:00).
+- Time per turn is now a toggle instead of a dropdown: No limit, 30, 45 or 60 seconds in Pusoy Dos, Tong-its and Poker, and No limit, 1, 2 or 3 minutes in Pusoy (the time to set the whole hand). The time is exactly what you pick; Pusoy used to multiply it by six (30 seconds became 3:00). Each game remembers its own choice.
 - The countdown is a large ring in the middle of the table that drains as time runs out, turning amber at 30 seconds and red, pulsing, at 10.
 - Pusoy has a "Swap middle and bottom" button that trades the two five-card rows in one tap.
+- Pusoy: the help button moved into the button row so it no longer covers the row labels on small phones, and after a hand everyone's cards stay inside their own box (they spilled over on phones).
 
 ### Cards and screens
 - Real card faces from Byron Knoll's public-domain deck: number cards show their pips and J, Q, K show court art. The whole deck is one 584 KB image. Cards under 40 px wide switch to a big rank and suit so they stay readable.

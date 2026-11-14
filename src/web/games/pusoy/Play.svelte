@@ -107,6 +107,9 @@
   }
   const waiting = $derived(view.waiting.filter((id) => id !== view.you));
   const settled = $derived(view.mine !== null || view.myNatural !== null);
+  const revealing = $derived(view.done && view.reveal !== undefined && view.reveal !== null);
+  /** Only the reveal and the bystander view keep the help button in the corner; there is no row label beside it. */
+  const helpInCorner = $derived(revealing || (!settled && !(view.you !== null && layout.length === 13)));
 
   // --- the reveal: you first, then everyone else in seat order
   const order = $derived(view.you ? [view.you, ...view.players.filter((id) => id !== view.you)] : view.players);
@@ -115,8 +118,12 @@
 </script>
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && (rulesOpen = false)} />
+{#snippet help(corner: boolean)}
+  <button type="button" class="ghost rules-toggle" class:corner aria-expanded={rulesOpen} aria-label={t('pusoy.play.rulesTitle')} onclick={() => (rulesOpen = !rulesOpen)}><Icon name="help" /></button>
+{/snippet}
+<!-- The help button sits in a row of its own controls while your hand is on screen, so it never covers the row labels. -->
 <div class="ps">
-  <button type="button" class="ghost rules-toggle" aria-expanded={rulesOpen} aria-label={t('pusoy.play.rulesTitle')} onclick={() => (rulesOpen = !rulesOpen)}><Icon name="help" /></button>
+  {#if helpInCorner}{@render help(true)}{/if}
   {#if rulesOpen}
     <div class="rules" role="dialog" aria-label={t('pusoy.play.rulesTitle')}>
       <strong>{t('pusoy.play.rulesTitle')}</strong>
@@ -132,7 +139,7 @@
     </div>
   {/if}
 
-  {#if view.done && view.reveal}
+  {#if revealing && view.reveal}
     <p class="dim small legend">{view.you ? t('pusoy.play.revealHelp') : t('pusoy.play.revealHelpAll')}</p>
     <div class="reveal">
       {#each order as id (id)}
@@ -172,7 +179,7 @@
       {@const mine = view.mine as Arrangement}
       <div class="hand"><HeldRows rows={[mine.front, mine.middle, mine.back]} labels={labelsOf(mine)} label={t('play.yourHand')} /></div>
     {/if}
-    <p class="dim small">{view.myNatural ? t('pusoy.play.declared', { name: t(`pusoy.n.${view.myNatural}`) }) : t('pusoy.play.setDone')}{#if waiting.length > 0} · {t('pusoy.play.waiting', { names: waiting.map(nameOf).join(', ') })}{/if}</p>
+    <div class="status">{@render help(false)}<p class="dim small">{view.myNatural ? t('pusoy.play.declared', { name: t(`pusoy.n.${view.myNatural}`) }) : t('pusoy.play.setDone')}{#if waiting.length > 0} · {t('pusoy.play.waiting', { names: waiting.map(nameOf).join(', ') })}{/if}</p></div>
   {:else if view.you !== null && layout.length === 13}
     {#each view.eligible as key (key)}
       <button type="button" class="nat-btn" onclick={() => onmove({ t: 'natural', key })}>
@@ -185,6 +192,7 @@
     </div>
     {#if touched && problem === 'order'}<p class="hint" role="alert">{t('pusoy.play.order')}</p>{/if}
     <div class="acts">
+      {@render help(false)}
       <button type="button" onclick={swapRows}>⇅ {t('pusoy.play.swapRows')}</button>
       <button type="button" class="primary" disabled={problem !== null} onclick={confirm}>{t('pusoy.play.confirm')}</button>
     </div>
@@ -194,30 +202,35 @@
 
 <style>
   .ps { position: relative; display: flex; flex-direction: column; gap: 6px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
-  .rules-toggle { position: absolute; right: 0; top: -4px; width: 44px; min-height: 0; height: 44px; padding: 0; border-radius: 50%; z-index: 6; display: grid; place-items: center; color: var(--accent); border: 0; }
+  .rules-toggle { flex: none; width: 44px; min-height: 44px; height: 44px; padding: 0; border-radius: 50%; display: grid; place-items: center; color: var(--accent); border: 0; }
+  .rules-toggle.corner { position: absolute; right: 0; top: -4px; z-index: 6; }
+  .status { flex: none; display: flex; align-items: center; gap: 6px; }
+  .status .small { flex: 1; }
   /* an overlay on the whole screen (the screen is the containing block), so the play area never clips it */
   .rules { position: fixed; z-index: 25; right: 10px; top: 52px; max-height: calc(100% - 64px); overflow-y: auto; width: min(320px, calc(100% - 20px)); padding: 10px 14px; border-radius: 12px; border: 1px solid var(--brass); background: var(--felt-900, #0b2f25); color: var(--cream, #f3e9d2); box-shadow: 0 8px 24px rgba(0,0,0,.5); font-size: .85rem; }
   .rules ul { margin: 6px 0 8px; padding-left: 1.1em; }
   .rules li { margin: .3em 0; }
   .hand { flex: 1 1 0; min-height: 200px; padding-right: 2px; }
   .nat-btn { width: 100%; }
-  .acts { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .acts { flex: none; display: grid; grid-template-columns: 44px 1fr 1fr; gap: 8px; align-items: center; }
   .acts button { min-height: 44px; padding: 6px 8px; line-height: 1.15; }
   .hint { margin: 0; color: #ffb79e; font-size: .8rem; text-align: center; }
   .small { margin: 0; font-size: .78rem; text-align: center; }
   .legend { padding-right: 44px; text-align: left; }
   .reveal { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; gap: 5px; overflow: hidden; }
-  .player { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; padding: 4px 6px; border: 1px solid var(--line); border-radius: 10px; }
+  .player { flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding: 4px 6px; border: 1px solid var(--line); border-radius: 10px; }
   .player.me { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 8%, transparent); }
-  .phead { display: flex; align-items: baseline; gap: 8px; font-size: .8rem; }
+  .phead { display: flex; align-items: baseline; gap: 8px; font-size: .8rem; line-height: 1.15; }
   .pn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .vs { font-size: .72rem; }
-  .rows3 { flex: 1; min-height: 0; display: grid; grid-template-columns: 3fr 4fr 4fr; gap: 6px; }
+  .rows3 { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 3fr 4fr 4fr; grid-template-rows: minmax(0, 1fr); gap: 6px; }
   .cell { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-  .mk { font-size: .66rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mk { font-size: .66rem; line-height: 1.2; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mk.w { color: var(--pos); }
   .mk.l { color: var(--neg); }
   .mk > span[aria-hidden] { font-weight: 800; margin-right: 3px; }
-  .mini { flex: 1; min-height: 34px; }
+  /* the fan fills whatever height is left in the box, so the cards always stay inside it */
+  .mini { flex: 1 1 0; min-height: 0; position: relative; }
+  .mini > :global(.fan) { position: absolute; inset: 0; min-height: 0; }
   .nat { color: var(--brass-soft, var(--brass)); font-size: .85rem; }
 </style>

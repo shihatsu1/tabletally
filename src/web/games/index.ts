@@ -70,6 +70,8 @@ export interface GameUiOf<View, Move, Setup> {
   seat?(view: View, playerId: string, t: T): SeatInfo | null;
   /** The stake the host sets when dealing: its label key and a starting value. Absent for stakeless games (poker). */
   stake?: { label: string; start: number };
+  /** Time-per-turn choices in seconds, after "No limit". Default 30, 45 and 60 seconds (one move at a time). */
+  turnChoices?: readonly number[];
   /** One-line summary of a saved round for the history list. */
   describe(round: PublicRound, setup: unknown, nameOf: (id: string) => string, t: T): string;
   /** Who won the round, for celebrations. Null if there is no single winner. */
@@ -202,6 +204,8 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
     Setup: PusoySetupUi,
     Play: PusoyPlay,
     stake: { label: 'play.stake', start: 50 },
+    // the whole 13-card hand is set in one go, so the clock is in minutes
+    turnChoices: [60, 120, 180],
     seat(viewRaw, id, t) {
       const view = viewRaw as PsView | null;
       if (!view || view.done) return null;

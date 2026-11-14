@@ -84,7 +84,9 @@
   .status strong { font-family: var(--font-display); font-weight: 800; font-size: 1.05em; color: var(--accent); }
   .status.mine { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 14%, transparent); }
   .mat { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border-radius: 12px; border: 1px dashed var(--line); min-height: 90px; justify-content: center; flex: 0 1 150px; overflow: hidden; }
-  .pile { width: 70%; flex: 1 1 auto; min-height: 60px; }
+  /* the fan fills the pile's height exactly, so the cards never run into the "passed" line below */
+  .pile { position: relative; width: 70%; flex: 1 1 0; min-height: 48px; }
+  .pile > :global(.fan) { position: absolute; inset: 0; min-height: 0; }
   .hand { flex: 1 1 0; min-height: 120px; max-height: 340px; }
   .by { font-size: .8rem; color: var(--text-dim); }
   .small { font-size: .75rem; }

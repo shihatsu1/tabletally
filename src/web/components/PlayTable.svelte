@@ -18,17 +18,22 @@
   // svelte-ignore state_referenced_locally
   const saved = Number.parseInt(getItem(`tt.stake.${room.gameId}`) ?? '', 10);
   let stakeText = $state(String(Number.isSafeInteger(saved) && saved > 0 ? saved : stakeCfg?.start ?? 1));
-  /** Time per turn, the same choices in every game (in Pusoy it is the time to set the whole hand). */
-  const TURN_CHOICES = [0, 60, 120, 180] as const;
-  const savedTurn = Number.parseInt(getItem('tt.turnSeconds') ?? '0', 10);
-  let turnSeconds = $state<number>((TURN_CHOICES as readonly number[]).includes(savedTurn) ? savedTurn : 0);
+  /** Time per turn: 30/45/60 seconds for one move, or the game's own choices (Pusoy sets a whole hand: 1-3 minutes). */
+  // svelte-ignore state_referenced_locally
+  const TURN_CHOICES: readonly number[] = [0, ...(gameUis[room.gameId]?.turnChoices ?? [30, 45, 60])];
+  // svelte-ignore state_referenced_locally
+  const inMinutes = gameUis[room.gameId]?.turnChoices !== undefined;
+  // svelte-ignore state_referenced_locally
+  const turnKey = `tt.turnSeconds.${room.gameId}`;
+  const savedTurn = Number.parseInt(getItem(turnKey) ?? '0', 10);
+  let turnSeconds = $state<number>(TURN_CHOICES.includes(savedTurn) ? savedTurn : 0);
   // Stakeless games (poker) still send a stake of 1; the server ignores it.
   const stake = $derived(!stakeCfg ? 1 : /^\d{1,8}$/.test(stakeText) ? Number.parseInt(stakeText, 10) : 0);
 
   function deal() {
     if (stake < 1) return;
     if (stakeCfg) setItem(`tt.stake.${room.gameId}`, String(stake));
-    setItem('tt.turnSeconds', String(turnSeconds));
+    setItem(turnKey, String(turnSeconds));
     send({ t: 'deal', stake, turnSeconds });
   }
 
@@ -94,7 +99,7 @@
         {#each TURN_CHOICES as s (s)}
           <label class="turn" class:on={turnSeconds === s}>
             <input type="radio" name="turn-time" value={s} bind:group={turnSeconds} />
-            <span>{s === 0 ? t('play.turnTime.0') : t('play.turnTime.m', { n: s / 60 })}</span>
+            <span>{s === 0 ? t('play.turnTime.0') : inMinutes ? t('play.turnTime.m', { n: s / 60 }) : t('play.turnTime.s', { n: s })}</span>
           </label>
         {/each}
       </fieldset>

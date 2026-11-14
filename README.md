@@ -13,7 +13,7 @@ Card games with friends, on your phones. The host starts a table and picks the g
 1. Open **[TableTally](https://tabletally.tabletally.workers.dev)** on your phone or computer and choose **Start a table**.
 2. Pick Pusoy Dos, Pusoy, Tong-its or Poker, set the player count and table options, enter your display name, then choose **Create table**.
 3. Invite friends by sharing the table link or letting them scan its QR code. They can also open the app, choose **Join a table** and enter the six-letter table code. Each friend enters a display name and taps **Sit down**.
-4. Once every seat is filled, the host picks a time per turn (No limit, 1, 2 or 3 minutes) and taps **Deal**. Play your cards in the app; it checks the moves, keeps everyone's cards private and records the score automatically.
+4. Once every seat is filled, the host picks a time per turn (30, 45 or 60 seconds; 1, 2 or 3 minutes in Pusoy; or no limit) and taps **Deal**. Play your cards in the app; it checks the moves, keeps everyone's cards private and records the score automatically.
 5. After the hand, review the results. The host taps **Deal the next hand** to keep playing.
 
 **Playing solo?** Add computer players when creating the table. Choose Easy, Normal or Hard to fill the other seats, then deal.

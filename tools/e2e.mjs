@@ -95,7 +95,9 @@ try {
       const pass = page.getByRole('button', { name: 'Pass' });
       if (await pass.isEnabled()) await pass.click();
       else {
-        await page.locator('button.card').first().click();
+        // pick by keyboard: the fanned card is turned and mostly covered, so a pointer click at its box can land on a neighbour
+        await page.locator('button.card').first().focus();
+        await page.keyboard.press('Enter');
         await page.getByRole('button', { name: /^Play/ }).click();
       }
       moved = true;
