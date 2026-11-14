@@ -29,6 +29,7 @@ import {
 
 export interface Env {
   ROOM: DurableObjectNamespace<Room>;
+  LIMITER: DurableObjectNamespace<Limiter>;
   /** Test-only: `wrangler dev --var TT_RATE_LIMIT:off` lets load tests open many tables. Never set it in production. */
   TT_RATE_LIMIT?: string;
 }
@@ -40,12 +41,7 @@ async function sha256Hex(text: string): Promise<string> {
 
 const newRoomCode = (): string => randomCode(ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, (n) => crypto.getRandomValues(new Uint8Array(n)));
 
-/** Per address, per minute. A table of friends never comes close; a script probing codes does. */
-const LIMITS = {
-  create: new RateLimiter(10, 60_000),
-  status: new RateLimiter(60, 60_000),
-  socket: new RateLimiter(60, 60_000),
-};
+type LimitKind = 'create' | 'status' | 'socket';
 const MAX_CREATE_BYTES = 2048;
 /** A phone may send one reaction a second; a little under a second allows for timer jitter. */
 const REACT_GAP_MS = 900;
@@ -53,6 +49,19 @@ const limited = (env: Env): boolean => env.TT_RATE_LIMIT !== 'off';
 const tooMany = (): Response => json({ code: 'rate_limited', message: 'Too many requests. Wait a minute and try again.' }, 429);
 const clientKey = (request: Request): string => request.headers.get('CF-Connecting-IP') ?? 'local';
 const ROOM_PATH = /^\/api\/rooms\/([^/]+)\/(status|ws)$/;
+
+async function allowed(env: Env, request: Request, kind: LimitKind): Promise<boolean> {
+  if (!limited(env)) return true;
+  try {
+    const stub = env.LIMITER.get(env.LIMITER.idFromName(clientKey(request)));
+    const response = await stub.fetch(`https://limiter/hit?kind=${kind}`);
+    const { ok } = (await response.json()) as { ok: boolean };
+    return ok;
+  } catch (error) {
+    console.error('Limiter request failed', error);
+    return true;
+  }
+}
 
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), {
@@ -66,7 +75,7 @@ export default {
 
     // POST /api/rooms: create a room and return its code. The caller's device token becomes the host key.
     if (url.pathname === '/api/rooms' && request.method === 'POST') {
-      if (limited(env) && !LIMITS.create.allow(clientKey(request), Date.now())) return tooMany();
+      if (!(await allowed(env, request, 'create'))) return tooMany();
       const raw = await readBodyLimited(request, MAX_CREATE_BYTES);
       if (raw === null) return json({ code: 'too_large', message: 'Request too large.' }, 413);
       let body: Record<string, unknown>;
@@ -97,12 +106,12 @@ export default {
 
     // GET /api/rooms/:code/status lets a reconnecting phone tell "expired" from "my network dropped".
     // GET /api/rooms/:code/ws is the live connection for one room.
-    // Both check the code against the real alphabet BEFORE touching a Durable Object, so junk never creates one.
+    // Both check the code against the real alphabet BEFORE touching a room Durable Object, so junk never creates a room.
     const m = ROOM_PATH.exec(url.pathname);
     if (m) {
       const code = m[1] as string;
       const kind = m[2] as 'status' | 'ws';
-      if (limited(env) && !(kind === 'status' ? LIMITS.status : LIMITS.socket).allow(clientKey(request), Date.now())) return tooMany();
+      if (!(await allowed(env, request, kind === 'status' ? 'status' : 'socket'))) return tooMany();
       if (!ROOM_CODE_PATTERN.test(code)) return json({ code: 'no_room', message: 'Unknown room.' }, 404);
       const stub = env.ROOM.get(env.ROOM.idFromName(code));
       if (kind === 'status') return request.method === 'GET' ? stub.fetch('https://room/status') : json({ code: 'not_found', message: 'Not found.' }, 404);
@@ -114,6 +123,24 @@ export default {
     return json({ code: 'not_found', message: 'Not found.' }, 404);
   },
 } satisfies ExportedHandler<Env>;
+
+/** One counter per kind, per address, shared across Worker isolates. No storage writes. */
+export class Limiter extends DurableObject<Env> {
+  private readonly limits = {
+    create: new RateLimiter(10, 60_000),
+    status: new RateLimiter(60, 60_000),
+    socket: new RateLimiter(60, 60_000),
+  };
+
+  async fetch(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    const kind = url.searchParams.get('kind');
+    if (url.pathname !== '/hit' || (kind !== 'create' && kind !== 'status' && kind !== 'socket')) {
+      return json({ ok: false }, 404);
+    }
+    return json({ ok: this.limits[kind].allow('address', Date.now()) });
+  }
+}
 
 type Attachment = { tokenHash: string } | null;
 type RoomMeta = Omit<RoomState, 'events'>;

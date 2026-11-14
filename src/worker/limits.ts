@@ -1,9 +1,9 @@
 /**
  * Request limits for the public routes. Pure helpers so they are unit-tested without a server.
  *
- * The rate limiter is a fixed window per key held in the Worker's memory. Each Cloudflare location (and each
- * Worker instance) keeps its own count, so it is approximate: it stops a phone or script hammering one route,
- * not a large distributed attack. It needs no paid feature and stores nothing.
+ * The rate limiter is a fixed window per key held in memory. Public routes use it inside one Limiter
+ * Durable Object per address so counts are shared across Worker isolates. Counts reset if the object
+ * restarts; nothing is written to storage.
  */
 export class RateLimiter {
   private readonly hits = new Map<string, { start: number; n: number }>();

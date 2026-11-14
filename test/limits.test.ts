@@ -16,6 +16,19 @@ describe('rate limiter (audit S01)', () => {
     for (let i = 0; i < 100; i++) expect(r.allow(`k${i}`, 0)).toBe(true);
     expect((r as unknown as { hits: Map<string, unknown> }).hits.size).toBeLessThanOrEqual(10);
   });
+
+  it('keeps independent counters for the same key and resets at the minute boundary', () => {
+    const create = new RateLimiter(10, 60_000);
+    const status = new RateLimiter(60, 60_000);
+    const socket = new RateLimiter(60, 60_000);
+    for (let i = 0; i < 10; i++) expect(create.allow('address', 0)).toBe(true);
+    expect(create.allow('address', 59_999)).toBe(false);
+    for (const counter of [status, socket]) {
+      for (let i = 0; i < 60; i++) expect(counter.allow('address', 0)).toBe(true);
+      expect(counter.allow('address', 59_999)).toBe(false);
+    }
+    for (const counter of [create, status, socket]) expect(counter.allow('address', 60_000)).toBe(true);
+  });
 });
 
 describe('request parsing (audit S03/S04)', () => {

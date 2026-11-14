@@ -34,8 +34,8 @@ All notable changes to TableTally. Dates are in Asia/Tokyo. Codes in brackets ar
 
 ### Security
 - Cards are shuffled from `crypto.getRandomValues`, not from one 32-bit seed; `randInt` has no modulo bias [S05].
-- Per-address rate limits on creating tables, status lookups and sockets (in Worker memory, free) [S01].
-- Codes are checked against the real alphabet before any Durable Object is touched, and a Durable Object writes nothing until a table is actually created [S01, S02].
+- Per-address rate limits on creating tables, status lookups and sockets are counted in one Durable Object per address so they hold across Cloudflare's isolates, with no storage writes [S01].
+- Codes are checked against the real alphabet before any room Durable Object is touched, and a room Durable Object writes nothing until a table is actually created [S01, S02].
 - Opaque or malformed `Origin` headers get a 403 instead of an exception [S03].
 - Create requests are read with a 2 KB byte cap without buffering the rest [S04].
 - Table codes are six characters (about 887 million) with unbiased generation [S06].
