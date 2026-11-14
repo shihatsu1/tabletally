@@ -1,7 +1,12 @@
 import { assertAmount } from './integer';
 
-/** Net result per player in the smallest unit. Positive = is owed, negative = owes. Must sum to 0. */
-export type Net = Readonly<Record<string, number>>;
+import type { Net } from './game';
+
+/**
+ * Fewest-payments settlement. Kept and tested, but the app does not use it: showing who pays whom was left out
+ * on purpose (the app keeps score and never settles money). Do not wire it into a screen without asking.
+ */
+export type { Net };
 
 export interface Payment {
   from: string;

@@ -84,7 +84,7 @@ function connect(): void {
         .then((r) => {
           if (r.status === 404 && wanted && ws === socket) session.status = 'closed';
         })
-        .catch(() => undefined);
+        .catch(() => undefined); // offline: keep reconnecting
     }
     timer = setTimeout(() => session.status !== 'closed' && connect(), Math.min(1000 * 2 ** (retry - 1), 10_000));
   };

@@ -1,7 +1,7 @@
 /**
- * Shared card helpers for the private hand helpers. Cards are numbers 0..51:
- * suit * 13 + (rank - 1), suits S H D C, ranks A=1 .. K=13. The app never sees anyone's hand:
- * these functions run on the player's own phone.
+ * Shared card helpers. Cards are numbers 0..51: suit * 13 + (rank - 1), suits S H D C, ranks A=1 .. K=13.
+ * The server holds every hand while one is played, and each phone is only ever sent its own cards (see the
+ * engines' viewFor); these helpers are pure and used on both sides.
  */
 export type Card = number;
 

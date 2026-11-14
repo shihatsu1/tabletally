@@ -16,7 +16,8 @@
     "smoke": "node tools/smoke.mjs",
     "stress": "vitest run --config vitest.stress.config.ts",
     "stress:quick": "STRESS_N=0.05 vitest run --config vitest.stress.config.ts",
-    "i18n": "node tools/stress/i18n-audit.mjs"
+    "i18n": "node tools/stress/i18n-audit.mjs",
+    "lint": "node tools/lint.mjs && node tools/stress/i18n-audit.mjs > /dev/null && echo \"i18n: English and Filipino match\""
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261113.1",

@@ -21,7 +21,8 @@ function audio(): AudioContext | null {
     ctx ??= new AudioContext();
     if (ctx.state === 'suspended') void ctx.resume();
     return ctx;
-  } catch {
+  } catch (e) {
+    if (import.meta.env.DEV) console.warn('sound unavailable', e);
     return null;
   }
 }

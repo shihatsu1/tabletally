@@ -119,7 +119,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 /** Clean a display name: trims, collapses spaces, strips control characters. Returns null if unusable. */
 export function cleanName(value: unknown): string | null {
   if (typeof value !== 'string') return null;
-  // eslint-disable-next-line no-control-regex
+  // control characters (U+0000 to U+001F and U+007F) are removed
   const name = value.replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim();
   return name.length >= 1 && name.length <= MAX_NAME_LENGTH ? name : null;
 }

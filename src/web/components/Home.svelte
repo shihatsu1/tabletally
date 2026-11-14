@@ -130,7 +130,7 @@
 
   {#if !persists}<p class="warn" role="note">{t('home.noStorage')}</p>{/if}
   {#if error}<p class="error" role="alert">{error}</p>{/if}
-  <button type="submit" class="primary" style="width: 100%; margin-top: 16px" disabled={busy}>
+  <button type="submit" class="primary wide" disabled={busy}>
     {busy ? t('home.creating') : t('home.createBtn')}
   </button>
 </form>

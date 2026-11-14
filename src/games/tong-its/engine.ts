@@ -19,6 +19,7 @@ import type { Card } from '../cards';
 import { rankOf, suitOf } from '../cards';
 import { bestDeadwood, discardAdvice, organize, pointsOf } from './hand';
 import type { Ending, TongItsInput, TongItsSetup } from './index';
+import { isInt } from '../../core/check';
 
 // ------------------------------------------------------------------ melds
 
@@ -150,7 +151,6 @@ export interface TiView {
   hands?: Record<string, Card[]>;
 }
 
-const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
 const without = (cards: readonly Card[], drop: readonly Card[]): Card[] => cards.filter((c) => !drop.includes(c));
 const openedBy = (s: Pick<TiState, 'melds'>, id: string): boolean => s.melds.some((m) => m.owner === id);
 

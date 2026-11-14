@@ -82,7 +82,7 @@
       </div>
     {/each}
   </div>
-  <p class="dim" style="font-size:.85rem">{t('opt.points.help', { n: playerCount })}</p>
+  <p class="dim note">{t('opt.points.help', { n: playerCount })}</p>
 {/if}
 
 <style>

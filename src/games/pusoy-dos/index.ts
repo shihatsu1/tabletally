@@ -1,6 +1,6 @@
-import type { GameModule } from '../../core/game';
 import { MAX_AMOUNT } from '../../core/integer';
-import type { Net } from '../../core/settlement';
+import type { GameModule, Net } from '../../core/game';
+import { has, isInt, isRecord } from '../../core/check';
 
 /**
  * Pusoy Dos scoring. See docs/rules/pusoy-dos.md for sources and worked examples. Every rule that
@@ -106,10 +106,6 @@ export function penalty(tiers: readonly Tier[], cardsLeft: number, startingHand 
   return cardsLeft * rate;
 }
 
-const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === 'object' && v !== null && !Array.isArray(v);
-const has = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 
 export const pusoyDos: GameModule<PusoyDosSetup, PusoyDosInput> = {
   id: 'pusoy-dos',

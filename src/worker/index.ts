@@ -45,6 +45,8 @@ const LIMITS = {
   socket: new RateLimiter(60, 60_000),
 };
 const MAX_CREATE_BYTES = 2048;
+/** A phone may send one reaction a second; a little under a second allows for timer jitter. */
+const REACT_GAP_MS = 900;
 const tooMany = (): Response => json({ code: 'rate_limited', message: 'Too many requests. Wait a minute and try again.' }, 429);
 const clientKey = (request: Request): string => request.headers.get('CF-Connecting-IP') ?? 'local';
 const ROOM_PATH = /^\/api\/rooms\/([^/]+)\/(status|ws)$/;
@@ -312,7 +314,7 @@ export class Room extends DurableObject<Env> {
       // Reactions are transient: nothing is saved, and a phone can send at most one a second.
       const who = ws.deserializeAttachment() as Attachment;
       const id = who ? actorFor(state, who.tokenHash).playerId : null;
-      if (!id || now - (this.lastReact.get(ws) ?? 0) < 900) return;
+      if (!id || now - (this.lastReact.get(ws) ?? 0) < REACT_GAP_MS) return;
       this.lastReact.set(ws, now);
       for (const s of this.ctx.getWebSockets()) this.send(s, { t: 'react', from: id, emoji: parsed.emoji });
       return;

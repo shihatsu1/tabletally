@@ -97,6 +97,10 @@ label { display: block; font-size: .85rem; color: var(--text-dim); margin: .9em 
 .neg { color: var(--neg); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .error { color: var(--neg); margin: .6em 0; }
+.wide { width: 100%; margin-top: 16px; }
+.spaced { margin-top: 12px; }
+.note { font-size: .85rem; }
+.row.presets { gap: 8px; margin: 6px 0; }
 /* A choice drawn as a card (radio or checkbox inside a label), used by the game setup screens. */
 .opt { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; color: var(--text); font-size: 1rem; }
 .opt.on { background: color-mix(in srgb, var(--brass) 16%, transparent); border-color: var(--brass); }

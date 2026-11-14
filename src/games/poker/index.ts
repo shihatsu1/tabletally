@@ -1,6 +1,6 @@
-import type { GameModule } from '../../core/game';
 import { MAX_AMOUNT, convertZeroSum } from '../../core/integer';
-import type { Net } from '../../core/settlement';
+import type { GameModule, Net } from '../../core/game';
+import { has, isInt, isRecord } from '../../core/check';
 
 /**
  * Poker scoring. See docs/rules/poker.md. The app plays no-limit Hold'em with play chips (engine.ts); each
@@ -41,9 +41,6 @@ export interface PokerInput {
 export const MAX_CHIPS = 1_000_000_000;
 export const MAX_ENTRIES = 30;
 
-const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
-const has = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 
 export function defaultSetup(): PokerSetup {
   return { chips: 1, moneyUnits: 1, buyIn: 100, smallBlind: 1, bigBlind: 2 };

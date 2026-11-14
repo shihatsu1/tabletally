@@ -1,6 +1,6 @@
-import type { GameModule } from '../../core/game';
 import { MAX_AMOUNT } from '../../core/integer';
-import type { Net } from '../../core/settlement';
+import type { GameModule, Net } from '../../core/game';
+import { isInt, isRecord } from '../../core/check';
 
 /**
  * Tong-its scoring. See docs/rules/tong-its.md. Payments are counted in chips, and one chip is worth
@@ -66,8 +66,6 @@ export const PRESETS: Readonly<Record<'pagat' | 'tongits-go', TongItsSetup>> = {
 export const MAX_STAKE = 10_000_000;
 export const MAX_CHIPS = 100;
 
-const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 /** Chips one loser pays, before the burned and pot extras. */
 export function baseChips(setup: TongItsSetup, ending: Ending): number {

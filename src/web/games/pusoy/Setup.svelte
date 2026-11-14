@@ -81,7 +81,7 @@
 {#if setup.naturals}
   <div class="indent">
     <p class="dim note">{t('pusoy.naturals.help')}</p>
-    <div class="row" style="gap: 8px; margin: 6px 0">
+    <div class="row presets">
       <button type="button" class="ghost" onclick={() => patch({ natural: { ...NATURAL_DEFAULTS } })}>{t('pusoy.naturals.ph')}</button>
       <button type="button" class="ghost" onclick={() => patch({ natural: { ...NATURAL_WIKIPEDIA } })}>{t('pusoy.naturals.wiki')}</button>
     </div>
@@ -111,7 +111,7 @@
       <input id="scoop" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value={String(setup.scoopBonus)} onchange={(e) => patch({ system: 'custom', scoopBonus: num(e.currentTarget, 0, 20) })} />
     </div>
   </div>
-  <button type="button" class="ghost" style="margin-top: 10px" onclick={reset}>{t('pusoy.reset')}</button>
+  <button type="button" class="ghost spaced" onclick={reset}>{t('pusoy.reset')}</button>
 </details>
 
 <style>

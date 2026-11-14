@@ -49,7 +49,7 @@
 </div>
 <p class="dim note">{t('poker.opt.blindsHelp')}</p>
 
-<button type="button" class="ghost" style="margin-top: 12px" onclick={() => onchange(defaultSetup())}>{t('pusoy.reset')}</button>
+<button type="button" class="ghost spaced" onclick={() => onchange(defaultSetup())}>{t('pusoy.reset')}</button>
 
 <style>
   .note { font-size: .85rem; margin: 4px 0 8px; }

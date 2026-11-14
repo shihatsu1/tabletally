@@ -19,6 +19,7 @@ import type { Card } from '../cards';
 import { rankOf } from '../cards';
 import { eval5 } from '../pusoy/engine';
 import { MAX_CHIPS, analyze, blindsOf, type PokerInput, type PokerSetup } from './index';
+import { isInt } from '../../core/check';
 
 // ------------------------------------------------------------------ hand evaluation
 
@@ -28,6 +29,8 @@ export interface Strength {
   cat: number;
 }
 
+/** How many random deals Hard simulates to judge its hand: enough to be steady, small enough to stay fast. */
+const HARD_EQUITY_TRIALS = 260;
 const COMBOS: Record<number, number[][]> = {};
 function combos(n: number): number[][] {
   if (COMBOS[n]) return COMBOS[n] as number[][];
@@ -128,7 +131,6 @@ export interface PkView {
   wins?: PkWin[];
 }
 
-const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
 const potOf = (s: PkState): number => s.players.reduce((a, id) => a + (s.seats[id] as PkSeat).total, 0);
 const live = (s: PkState): string[] => s.players.filter((id) => !(s.seats[id] as PkSeat).folded);
 const canAct = (s: PkState, id: string): boolean => {
@@ -481,7 +483,7 @@ function pkBot(view: PkView, level: BotLevel, seed: number): PkMove {
 
   // Hard: compare a simulated chance of winning with the pot odds, and play position and bluffs.
   const opponents = Math.max(1, view.players.filter((id) => id !== view.you && !(view.seat[id] as PkSeatView).folded).length);
-  const e = equity(view.hole, view.board, Math.min(opponents, 4), 260, rng);
+  const e = equity(view.hole, view.board, Math.min(opponents, 4), HARD_EQUITY_TRIALS, rng);
   const late = me.dealer;
   const adj = e - (opponents - 1) * 0.02;
   if (view.toCall === 0) {

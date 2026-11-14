@@ -1,4 +1,6 @@
-import type { Net } from './settlement';
+/** A round's result: each player's whole-number gain or loss. Every Net sums to zero. */
+export type Net = Readonly<Record<string, number>>;
+
 
 /**
  * The only contract between the core and a game. A new game is one folder under src/games/<id>/

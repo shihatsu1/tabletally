@@ -18,6 +18,7 @@ import type { Card } from '../cards';
 import { rankOf } from '../cards';
 import { cardPower, organize, rankPower, sortHand, type PlayKind } from './hand';
 import type { PusoyDosInput, PusoyDosSetup } from './index';
+import { isInt } from '../../core/check';
 
 export interface Combo {
   size: 1 | 2 | 3 | 5;
@@ -143,7 +144,6 @@ export interface PdView {
   hands?: Record<string, Card[]>;
 }
 
-const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
 
 function start(setup: PusoyDosSetup, players: readonly string[], seed: number | Rng): PdState {
   const rng = rngFrom(seed);

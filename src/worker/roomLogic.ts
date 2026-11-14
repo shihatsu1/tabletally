@@ -12,7 +12,8 @@ import {
 } from '../shared/protocol';
 
 /** Pure room logic. The Durable Object is a thin adapter around these functions, so everything
- *  here is unit-tested without a server. No I/O, no clock, no randomness: callers pass `now`. */
+ *  here is unit-tested without a server. No I/O, no clock, no randomness: callers pass `now`. The only side
+ *  effect is console.error when a game engine throws (an engine bug), so it shows in the Worker's logs. */
 
 export const DAY_MS = 86_400_000;
 export const MAX_ROOM_NAME = 40;
@@ -474,7 +475,8 @@ function deal(s: RoomState, stake: number, turnSeconds: number, now: number, see
   let state: unknown;
   try {
     state = engine.start(s.setup, s.players.map((pl) => pl.id), dealRng ?? seed, s.play?.state ?? null);
-  } catch {
+  } catch (e) {
+    console.error(`deal failed for ${s.gameId} in room ${s.code}`, e); // no cards or tokens in the message
     return fail('bad_setup', 'The game options cannot be dealt.');
   }
   const play: PlayRec = {
@@ -504,8 +506,8 @@ function recordFinishedHand(before: RoomState, state: RoomState, now: number): R
   if (engine.finalize) {
     try {
       input = engine.finalize(input, state.setup, replayState(before, before.events).rounds.map((r) => r.input));
-    } catch {
-      /* keep the plain result */
+    } catch (e) {
+      console.error(`finalize failed for ${state.gameId} in room ${state.code}; using the plain result`, e);
     }
   }
   const round = engine.stakeless ? input : { ...input, stake: state.play.stake };
@@ -528,14 +530,16 @@ function playMove(s: RoomState, pid: string, move: unknown, now: number): Result
   let problems: string[];
   try {
     problems = engine.validate(s.play.state, pid, move);
-  } catch {
+  } catch (e) {
+    console.error(`validate threw for ${s.gameId} in room ${s.code}`, e);
     problems = ['that move could not be read'];
   }
   if (problems.length > 0) return fail('bad_move', problems.join('; '));
   let next: unknown;
   try {
     next = engine.apply(s.play.state, pid, move);
-  } catch {
+  } catch (e) {
+    console.error(`apply threw for ${s.gameId} in room ${s.code}`, e);
     return fail('bad_move', 'That move could not be played.');
   }
   let state: RoomState = { ...s, play: { ...s.play, state: next, moves: s.play.moves + 1 }, lastActivityAt: now };
@@ -573,7 +577,8 @@ export function advancePlay(s: RoomState, now: number, timeOnly = false): RoomSt
     let move: unknown;
     try {
       move = level ? engine.bot(view, level, mixSeed(cur.play.seed, cur.play.moves)) : engine.timeoutMove(view);
-    } catch {
+    } catch (e) {
+      console.error(`computer move failed for ${cur.gameId} in room ${cur.code}; playing the safe move`, e);
       move = engine.timeoutMove(view);
     }
     let res = playMove(cur, who, move, now);

@@ -4,8 +4,11 @@ import { analyze as analyzePusoy, type PusoyInput, type PusoySetup } from '../..
 import { deuceMultiplier, type PusoyDosInput, type PusoyDosSetup, type Tier } from '../../games/pusoy-dos';
 import type { PokerInput, PokerSetup } from '../../games/poker';
 import type { TongItsInput, TongItsSetup } from '../../games/tong-its';
-import type { PkView } from '../../games/poker/engine';
-import type { PsView } from '../../games/pusoy/engine';
+import type { PkMove, PkView } from '../../games/poker/engine';
+import type { PsMove, PsView } from '../../games/pusoy/engine';
+import type { PdMove, PdView } from '../../games/pusoy-dos/engine';
+import type { TiMove, TiView } from '../../games/tong-its/engine';
+import type { RoomView } from '../../shared/protocol';
 import PokerPlay from './poker/Play.svelte';
 import PokerSetupUi from './poker/Setup.svelte';
 import PusoyPlay from './pusoy/Play.svelte';
@@ -36,24 +39,37 @@ const countSeat = (view: unknown, id: string): SeatInfo | null => {
   return n === undefined ? null : { cards: n };
 };
 
+/** Props every game's Play screen takes. */
+export interface PlayProps<View, Move> {
+  view: View;
+  /** The hand's stake (only some games show it). */
+  stake?: number;
+  nameOf: (id: string) => string;
+  onmove: (move: Move) => void;
+}
+
+/** Props every game's options screen takes. */
+export interface SetupProps<Setup> {
+  setup: Setup;
+  playerCount: number;
+  onchange: (next: Setup) => void;
+}
+
 /**
- * Everything the browser needs per game. The registry is typed loosely on purpose: each game's
- * components validate their own input and setup, and the server re-validates everything.
+ * Everything the browser needs per game, typed for that game. Games are registered through `defineUi`, which
+ * checks each screen against the game's own view, move and options types, then stores it in the shared registry.
  */
-export interface GameUi {
-  /** Live game status shown under the standings for everyone (for example the Tong-its pot). Props: room. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Status?: Component<any>;
-  /** The screen for a hand being played. Props: view, nameOf, onmove. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Play: Component<any>;
-  /** Host options screen. Props: setup, playerCount, onchange. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Setup: Component<any>;
+export interface GameUiOf<View, Move, Setup> {
+  /** Live game status shown in the waiting room (for example the Tong-its pot). */
+  Status?: Component<{ room: RoomView }>;
+  /** The screen for a hand being played. */
+  Play: Component<PlayProps<View, Move>>;
+  /** Host options screen. */
+  Setup: Component<SetupProps<Setup>>;
+  /** Live seat details for the seat strip, from this player's view of the hand. */
+  seat?(view: View, playerId: string, t: T): SeatInfo | null;
   /** The stake the host sets when dealing: its label key and a starting value. Absent for stakeless games (poker). */
   stake?: { label: string; start: number };
-  /** Live seat details for the seat strip, from this player's view of the hand. */
-  seat?(view: unknown, playerId: string, t: T): SeatInfo | null;
   /** One-line summary of a saved round for the history list. */
   describe(round: PublicRound, setup: unknown, nameOf: (id: string) => string, t: T): string;
   /** Who won the round, for celebrations. Null if there is no single winner. */
@@ -75,8 +91,17 @@ function tierText(tiers: Tier[], hand: number): string {
     .join(' · ');
 }
 
+/**
+ * The shared registry holds games side by side, so their view, move and options types are erased here. That is
+ * safe because every component and helper was checked against its own game's types in `defineUi`, the server only
+ * ever sends a game's own view to its screen, and the server re-validates every move and option.
+ */
+type Erased = any;
+export type GameUi = GameUiOf<Erased, Erased, Erased>;
+const defineUi = <View, Move, Setup>(ui: GameUiOf<View, Move, Setup>): GameUi => ui as unknown as GameUi;
+
 export const gameUis: Readonly<Record<string, GameUi>> = {
-  'pusoy-dos': {
+  'pusoy-dos': defineUi<PdView, PdMove, PusoyDosSetup>({
     Setup,
     Play: DosPlay,
     stake: { label: 'play.stake', start: 50 },
@@ -127,8 +152,8 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
       lines.push(t('rules.vary'));
       return lines;
     },
-  },
-  'tong-its': {
+  }),
+  'tong-its': defineUi<TiView, TiMove, TongItsSetup>({
     Setup: TongSetup,
     Play: TongPlay,
     stake: { label: 'tong.stake', start: 10 },
@@ -172,8 +197,8 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
       lines.push(t('rules.vary'));
       return lines;
     },
-  },
-  pusoy: {
+  }),
+  pusoy: defineUi<PsView, PsMove, PusoySetup>({
     Setup: PusoySetupUi,
     Play: PusoyPlay,
     stake: { label: 'play.stake', start: 50 },
@@ -223,8 +248,8 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
       lines.push(t('rules.vary'));
       return lines;
     },
-  },
-  poker: {
+  }),
+  poker: defineUi<PkView, PkMove, PokerSetup>({
     Play: PokerPlay,
     seat(viewRaw, id, t) {
       const ps = (viewRaw as PkView | null)?.seat?.[id];
@@ -264,5 +289,5 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
         t('rules.poker.noMoney'),
       ];
     },
-  },
+  }),
 };

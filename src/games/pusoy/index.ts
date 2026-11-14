@@ -1,6 +1,6 @@
-import type { GameModule } from '../../core/game';
 import { MAX_AMOUNT } from '../../core/integer';
-import type { Net } from '../../core/settlement';
+import type { GameModule, Net } from '../../core/game';
+import { has, isInt, isRecord } from '../../core/check';
 
 /**
  * Pusoy (13-card Chinese poker) scoring. See docs/rules/pusoy.md. The app never sees the cards: the host
@@ -98,9 +98,6 @@ export const SYSTEMS = {
   '2-4': { majorityBonus: 1, scoopBonus: 0 },
 } as const;
 
-const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v);
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
-const has = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 
 export function defaultSetup(): PusoySetup {
   return {

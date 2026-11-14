@@ -1,6 +1,5 @@
-import type { GameModule } from './game';
+import type { GameModule, Net } from './game';
 import { assertAmount, MAX_AMOUNT } from './integer';
-import type { Net } from './settlement';
 
 /**
  * Append-only event log. State (rounds, totals, history) is always derived by replaying events,
