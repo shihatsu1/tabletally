@@ -17,6 +17,7 @@ All notable changes to TableTally. Dates are in Asia/Tokyo. Codes in brackets ar
 
 ### Tong-its hand
 - Your hand is held the way players hold it: the melds you could lay down come first, each with a gap after it, then the other cards in rank order (A, 2, 3 ... K) instead of by suit.
+- The stock is a stack of face-down cards in the middle of the table, with the count on it. On your draw it glows; tap it to draw (the separate button is gone).
 - Each suggested meld has a chip above the hand; tap its ✕ to put those cards back among the others, and "Group again" to undo.
 
 ### Every game the same

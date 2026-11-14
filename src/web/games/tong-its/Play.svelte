@@ -24,6 +24,7 @@
   const myTurn = $derived(me !== null && view.toAct === me && !view.done);
   const chosen = $derived(view.hand.filter((c) => picked.includes(c)));
   const top = $derived(view.discards[view.discards.length - 1]);
+  const canDraw = $derived(myTurn && view.phase === 'draw' && view.stockCount > 0);
   const canTake = $derived(top !== undefined && meldsContaining(view.hand, top).length > 0);
   const kind = $derived(chosen.length >= 3 ? meldKind(chosen) : null);
   const iAmOpen = $derived(me !== null && view.opened.includes(me));
@@ -100,8 +101,21 @@
 
   <div class="mat">
     <div class="piles">
-      <span class="pile"><span class="dim small">{t('tong.play.stock')}</span><strong>{view.stockCount}</strong></span>
-      <span class="pile"><span class="dim small">{t('tong.play.discard')}</span>{#if top !== undefined}<PlayingCard card={top} size={44} />{:else}<span class="dim">—</span>{/if}</span>
+      <!-- the stock is a real stack of face-down cards; on your draw you tap it to draw -->
+      {#snippet stack()}
+        {#each Array.from({ length: Math.min(view.stockCount, 4) }, (_, k) => k) as k (k)}
+          <span class="layer" style="--k: {k}"><PlayingCard card={null} size={50} /></span>
+        {/each}
+        <b class="count">{view.stockCount}</b>
+      {/snippet}
+      <span class="pile"><span class="dim small" aria-hidden="true">{t('tong.play.stock')}</span>
+      {#if canDraw}
+        <button type="button" class="stock live" aria-label={`${t('tong.play.drawStock')} (${view.stockCount})`} onclick={() => send({ t: 'draw', from: 'stock' })}>{@render stack()}</button>
+      {:else}
+        <span class="stock" role="img" aria-label={`${t('tong.play.stock')}: ${view.stockCount}`}>{@render stack()}</span>
+      {/if}
+      </span>
+      <span class="pile"><span class="dim small">{t('tong.play.discard')}</span>{#if top !== undefined}<PlayingCard card={top} size={50} />{:else}<span class="dim">—</span>{/if}</span>
     </div>
     <div class="melds">
       {#each byOwner as o (o.id)}
@@ -145,7 +159,6 @@
 
     {#if myTurn && view.phase === 'draw'}
       <div class="row">
-        <button type="button" class="primary" onclick={() => send({ t: 'draw', from: 'stock' })}>{t('tong.play.drawStock')}</button>
         <button type="button" disabled={!canTake} onclick={() => send({ t: 'draw', from: 'discard' })}>{t('tong.play.takeDiscard')}</button>
         {#if iAmOpen}<button type="button" class="ghost" onclick={() => send({ t: 'fight' })}>{t('tong.play.callDraw')}</button>{/if}
       </div>
@@ -183,6 +196,15 @@
   .mat { padding: 6px 8px; border-radius: 12px; border: 1px dashed var(--line); display: flex; flex-direction: column; gap: 6px; flex: 0 1 auto; min-height: 0; overflow: hidden; }
   .piles { display: flex; gap: 22px; justify-content: center; align-items: center; }
   .pile { display: inline-flex; gap: 6px; align-items: center; }
+  /* the stock: up to four face-down cards, each a little up and to the left of the one below */
+  .stock { position: relative; display: block; width: 58px; height: 81px; padding: 0; min-height: 0; border: 0; background: none; border-radius: 6px; }
+  .stock .layer { position: absolute; left: calc(var(--k) * 2px); top: calc(8px - var(--k) * 2px); }
+  .stock .count { position: absolute; right: -8px; bottom: -6px; z-index: 5; min-width: 24px; padding: 1px 6px; border-radius: 999px; background: var(--bg-deep); border: 1px solid var(--line); font-size: .75rem; text-align: center; color: var(--accent); }
+  .stock.live { cursor: pointer; animation: stock-glow 1.4s ease-in-out infinite; }
+  .stock.live .layer:last-of-type :global(.card) { box-shadow: 0 0 0 3px var(--brass-soft), 0 6px 14px rgba(0,0,0,.5); }
+  .stock.live:active { transform: translateY(1px); }
+  @keyframes stock-glow { 50% { filter: drop-shadow(0 0 10px var(--brass)); } }
+  @media (prefers-reduced-motion: reduce) { .stock.live { animation: none; } }
   .melds { display: flex; flex-direction: column; gap: 3px; }
   .owner { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
   .name { min-width: 4.5em; max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
