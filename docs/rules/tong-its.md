@@ -68,7 +68,7 @@ Online app style: C wins a challenged Draw with one secret four and a Sagasa, an
 
 ## Turn time and computer players
 
-- The host can set a time per turn when dealing. When it runs out a safe move is made for the player (draw from the stock; discard the card that hurts least; fold a Draw).
+- The host can set a time per turn when dealing. When it runs out the rest of the turn is played for the player: draw from the stock, show a taken discard's meld if one is owed, then discard the highest card that is not in a suggested meld (or fold a Draw call).
 - Easy discards at random and often does not show melds. Normal groups its hand for the fewest points, takes useful discards and discards at random about one time in three. Hard also keeps its discards safe from what has been played, and answers a Draw by comparing its total with a guess at the others'.
 - Measured: Hard wins about 45% against two Normals (33% would be even); Normal about 64% against two Easys.
 

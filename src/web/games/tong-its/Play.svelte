@@ -1,4 +1,7 @@
 <script lang="ts">
+  import type { RoomView } from '../../../shared/protocol';
+  import type { TongItsSetup } from '../../../games/tong-its';
+  import { potDealsSince } from './pot';
   import { canSapaw, keepsDiscardMeld, meldKind, meldsContaining, type TiMove, type TiView } from '../../../games/tong-its/engine';
   import { RANK_LABELS, bestDeadwood, organize, rankOf, suitOf } from '../../../games/tong-its/hand';
   import { t } from '../../lib/i18n.svelte';
@@ -8,10 +11,23 @@
 
   interface Props {
     view: TiView;
+    /** Points per chip for this hand. */
+    stake?: number;
     nameOf: (id: string) => string;
     onmove: (move: TiMove) => void;
+    room?: RoomView;
   }
-  let { view, nameOf, onmove }: Props = $props();
+  let { view, stake = 1, nameOf, onmove, room }: Props = $props();
+
+  // The pot on the table: one ante from each player for every deal since it was last collected, this deal included.
+  // Only while the hand is on: once it is over the room history already holds it (and "Last hand" is an old view).
+  const pot = $derived.by(() => {
+    if (!room || view.done) return null;
+    const ante = (room.setup as TongItsSetup).potAnte;
+    if (!ante) return null;
+    const chips = (potDealsSince(room.rounds) + 1) * ante * view.players.length;
+    return { chips, value: chips * stake, unit: room.unit };
+  });
 
   let picked = $state<number[]>([]);
   // Drop any selection that is no longer in the hand (after a move or a new deal).
@@ -30,6 +46,9 @@
   const canTakeNow = $derived(myTurn && view.phase === 'draw' && canTake);
   const useWith = $derived(canTakeNow && top !== undefined ? [...new Set(meldsContaining(view.hand, top).flat())].filter((c) => c !== top) : []);
   let pileOpen = $state(false);
+  // Stock and discard cards shrink a little on narrow phones so the piles and the pot share one row.
+  let winW = $state(400);
+  const pileSize = $derived(winW < 400 ? 42 : 50);
   /**
    * Taking the top discard always lays its meld down at once. With only one way to meld it (two matching cards)
    * that happens on the tap; with more, you first tap the cards to meld it with, then Show meld.
@@ -119,13 +138,15 @@
     return { cards, gaps, melds };
   });
   // \uFE0E keeps phones from drawing the suits as coloured emoji
+  /** A suggested meld you could lay down right now with ✓. */
+  const canLay = (m: number[]): boolean => myTurn && view.phase === 'play' && !choosing && meldKind(m) !== null && allowed(m);
   const SUIT_MARK = ['\u2660\uFE0E', '\u2665\uFE0E', '\u2666\uFE0E', '\u2663\uFE0E'];
   const short = (c: number): string => `${RANK_LABELS[rankOf(c) - 1]}${SUIT_MARK[suitOf(c)]}`;
   const RULES = ['tong.rule.draw', 'tong.rule.meld', 'tong.rule.sapaw', 'tong.rule.discard', 'tong.rule.draw2', 'tong.rule.tongits', 'tong.rule.helper'];
   const byOwner = $derived(view.players.map((id) => ({ id, melds: view.melds.filter((m) => m.owner === id) })).filter((o) => o.melds.length > 0));
 </script>
 
-<svelte:window onkeydown={(e) => e.key === 'Escape' && (pileOpen = false)} />
+<svelte:window bind:innerWidth={winW} onkeydown={(e) => e.key === 'Escape' && (pileOpen = false)} />
 <div class="ti">
   {#if pileOpen}
     <div class="pilelist" role="dialog" aria-label={t('tong.play.pileTitle', { n: view.discards.length })}>
@@ -141,11 +162,11 @@
   </div>
 
   <div class="mat">
-    <div class="piles">
+    <div class="piles" style="--ps: {pileSize}px">
       <!-- the stock is a real stack of face-down cards; on your draw you tap it to draw -->
       {#snippet stack()}
         {#each Array.from({ length: Math.min(view.stockCount, 4) }, (_, k) => k) as k (k)}
-          <span class="layer" style="--k: {k}"><PlayingCard card={null} size={50} /></span>
+          <span class="layer" style="--k: {k}"><PlayingCard card={null} size={pileSize} /></span>
         {/each}
         <b class="count">{view.stockCount}</b>
       {/snippet}
@@ -160,16 +181,23 @@
         {#if top !== undefined}
           <!-- the discard pile: the top card in front of the last few; tap it to take the card when you can, otherwise to see the whole pile -->
           <span class="dpile">
-            {#each view.discards.slice(-3, -1) as c, k (c)}<span class="under" style="--k: {k}"><PlayingCard card={c} size={50} /></span>{/each}
+            {#each view.discards.slice(-3, -1) as c, k (c)}<span class="under" style="--k: {k}"><PlayingCard card={c} size={pileSize} /></span>{/each}
             {#if canTakeNow}
-              <button type="button" class="dtop live" class:on={choosing} aria-label={t('tong.play.takeDiscard')} aria-pressed={choosing} onclick={tapDiscard}><PlayingCard card={top} size={50} /></button>
+              <button type="button" class="dtop live" class:on={choosing} aria-label={t('tong.play.takeDiscard')} aria-pressed={choosing} onclick={tapDiscard}><PlayingCard card={top} size={pileSize} /></button>
             {:else}
-              <button type="button" class="dtop" aria-label={t('tong.play.seePile', { n: view.discards.length })} onclick={() => (pileOpen = true)}><PlayingCard card={top} size={50} /></button>
+              <button type="button" class="dtop" aria-label={t('tong.play.seePile', { n: view.discards.length })} onclick={() => (pileOpen = true)}><PlayingCard card={top} size={pileSize} /></button>
             {/if}
             <button type="button" class="dcount" aria-label={t('tong.play.seePile', { n: view.discards.length })} onclick={() => (pileOpen = true)}>{view.discards.length}</button>
           </span>
         {:else}<span class="dim">—</span>{/if}
       </span>
+      {#if pot}
+        <span class="potbox" role="img" aria-label={t('tong.play.potIs', { n: pot.value, unit: pot.unit, chips: pot.chips })}>
+          <span class="dim small">{t('tong.potTitle')}</span>
+          <strong class="potamt">{pot.value}</strong>
+          <span class="potsub">{pot.unit} · {t('tong.play.potChips', { n: pot.chips })}</span>
+        </span>
+      {/if}
     </div>
     <div class="melds">
       {#each byOwner as o (o.id)}
@@ -201,9 +229,11 @@
     {#if !view.done && (held.melds.length > 0 || loose.length > 0 || points !== null)}
       <div class="helper">
         {#each held.melds as m (m.join('.'))}
-          <button type="button" class="chip" aria-label={t('tong.play.ungroup', { cards: m.map(short).join(' ') })} onclick={() => (loose = [...loose, ...m])}>
-            <span class="chipcards">{#each m as c (c)}<PlayingCard card={c} size={22} />{/each}</span><span class="x" aria-hidden="true">✕</span>
-          </button>
+          <span class="chip">
+            <span class="chipcards">{#each m as c (c)}<PlayingCard card={c} size={22} />{/each}</span>
+            {#if canLay(m)}<button type="button" class="cbtn ok" aria-label={t('tong.play.layMeld', { cards: m.map(short).join(' ') })} onclick={() => send({ t: 'meld', cards: m })}>✓</button>{/if}
+            <button type="button" class="cbtn" aria-label={t('tong.play.ungroup', { cards: m.map(short).join(' ') })} onclick={() => (loose = [...loose, ...m])}>✕</button>
+          </span>
         {/each}
         {#if loose.length > 0}<button type="button" class="chip again" onclick={() => (loose = [])}>{t('tong.play.regroup')}</button>{/if}
         {#if points !== null}<span class="points" aria-live="polite">{t('tong.play.points', { n: points })}</span>{/if}
@@ -242,21 +272,28 @@
   .row, .status { flex: none; }
   .hand { flex: 1 1 0; min-height: 120px; max-height: 340px; }
   .helper { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
-  .chip { min-height: 40px; padding: 2px 8px 2px 4px; border-radius: 999px; font-size: .78rem; display: inline-flex; gap: 3px; align-items: center; background: color-mix(in srgb, var(--brass) 12%, transparent); }
+  .chip { min-height: 40px; padding: 2px 4px; border-radius: 999px; font-size: .78rem; display: inline-flex; gap: 2px; align-items: center; border: 1px solid var(--line); background: color-mix(in srgb, var(--brass) 12%, transparent); }
+  .cbtn { width: 32px; min-height: 32px; height: 32px; padding: 0; border-radius: 50%; border: 0; background: none; color: var(--text-dim); font-size: .95rem; }
+  .cbtn.ok { color: #1d1608; background: var(--pos); font-weight: 800; }
   .chipcards { display: inline-flex; pointer-events: none; }
   .chipcards > :global(* + *) { margin-left: -9px; }
-  .chip .x { margin-left: 3px; color: var(--text-dim); }
-  .chip.again { background: none; color: var(--accent); }
+  .chip.again { background: none; color: var(--accent); padding: 2px 12px; }
   .points { margin-left: auto; font-size: .78rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--accent); }
   .status { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: var(--step--1); line-height: 1.3; }
   .status strong { font-family: var(--font-display); font-weight: 800; font-size: 1.05em; color: var(--accent); }
   .status.mine { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 14%, transparent); }
   .mat { padding: 6px 8px; border-radius: 12px; border: 1px dashed var(--line); display: flex; flex-direction: column; gap: 6px; flex: 0 1 auto; min-height: 0; overflow: hidden; }
-  .piles { display: flex; gap: 22px; justify-content: center; align-items: center; }
+  .piles { display: flex; gap: clamp(8px, 4vw, 22px); justify-content: center; align-items: center; min-width: 0; }
   .pile { display: inline-flex; gap: 6px; align-items: center; }
+  /* on narrow phones the pile names go above the piles, so stock, discard and pot fit in one row */
+  @media (max-width: 400px) { .pile { flex-direction: column; gap: 2px; } }
+  /* the pot sits on the table with the two piles */
+  .potbox { display: inline-flex; flex-direction: column; align-items: center; min-width: 0; max-width: 92px; line-height: 1.1; padding: 4px 8px; border: 1px dashed rgba(243, 233, 210, .5); border-radius: 14px; }
+  .potamt { font-family: var(--font-display); font-size: var(--step-1); color: var(--brass-soft); font-variant-numeric: lining-nums; }
+  .potsub { max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: .66rem; color: var(--text-dim); white-space: nowrap; }
   .row { min-height: 44px; }
   /* the discard pile: up to two older cards peek out to the left of the top card */
-  .dpile { position: relative; display: block; width: 66px; height: 73px; }
+  .dpile { position: relative; display: block; width: calc(var(--ps) + 16px); height: calc(var(--ps) * 1.4536); }
   .dpile .under { position: absolute; top: 0; left: calc(var(--k) * 8px); }
   .dtop { position: absolute; top: 0; left: 16px; padding: 0; min-height: 0; border: 0; background: none; border-radius: 6px; z-index: 3; }
   .dtop.live { animation: stock-glow 1.4s ease-in-out infinite; }
@@ -268,7 +305,7 @@
   .pilecards { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
   .pilelist > button { min-height: 40px; padding: 6px 18px; }
   /* the stock: up to four face-down cards, each a little up and to the left of the one below */
-  .stock { position: relative; display: block; width: 58px; height: 81px; padding: 0; min-height: 0; border: 0; background: none; border-radius: 6px; }
+  .stock { position: relative; display: block; width: calc(var(--ps) + 8px); height: calc(var(--ps) * 1.4536 + 8px); padding: 0; min-height: 0; border: 0; background: none; border-radius: 6px; }
   .stock .layer { position: absolute; left: calc(var(--k) * 2px); top: calc(8px - var(--k) * 2px); }
   .stock .count { position: absolute; right: -8px; bottom: -6px; z-index: 5; min-width: 24px; padding: 1px 6px; border-radius: 999px; background: var(--bg-deep); border: 1px solid var(--line); font-size: .75rem; text-align: center; color: var(--accent); }
   .stock.live { cursor: pointer; animation: stock-glow 1.4s ease-in-out infinite; }

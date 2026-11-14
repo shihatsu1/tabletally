@@ -46,6 +46,8 @@ export interface PlayProps<View, Move> {
   stake?: number;
   nameOf: (id: string) => string;
   onmove: (move: Move) => void;
+  /** The room, for games that show table-wide facts during a hand (the Tong-its pot). */
+  room?: RoomView;
 }
 
 /** Props every game's options screen takes. */

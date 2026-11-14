@@ -86,10 +86,10 @@
   {#if showLast && canShowLast && lastDone && gameUi}
     <div class="lastview" role="dialog" aria-label={t('play.lastHand')}>
       <div class="lasthead"><strong>{t('play.lastHand')}</strong><button type="button" class="ghost" onclick={() => (showLast = false)}>{t('room.closeMenu')}</button></div>
-      <gameUi.Play view={lastDone.view} stake={lastDone.stake} {nameOf} onmove={() => undefined} />
+      <gameUi.Play view={lastDone.view} stake={lastDone.stake} {nameOf} {room} onmove={() => undefined} />
     </div>
   {:else if play && gameUi}
-    <gameUi.Play view={play.view} stake={play.stake} {nameOf} onmove={(move: unknown) => send({ t: 'move', move })} />
+    <gameUi.Play view={play.view} stake={play.stake} {nameOf} {room} onmove={(move: unknown) => send({ t: 'move', move })} />
   {/if}
 
   {#if isHost && (!play || over)}

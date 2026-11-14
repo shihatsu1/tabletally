@@ -30,6 +30,12 @@ export interface PlayEngine<Setup = any, State = any, Move = any, View = any> {
   toAct(state: State): string | null;
   /** Simultaneous games (everyone acts at once, in secret): everyone who still has to act. Default: just `toAct`. */
   pending?(state: State): string[];
+  /**
+   * True when one turn is several moves by the same player (Tong-its: draw, then discard). When such a player runs
+   * out of time, `timeoutMove` is applied until the turn is over, so the clock does not start again on the same
+   * turn. Leave it off where the same player can be first to act again on a NEW turn (Poker's next street).
+   */
+  finishTurnOnTimeout?: boolean;
   /** True when `pending` can hold several players at once. Their one shared time limit starts when the hand is dealt. */
   simultaneous?: boolean;
   /** Human-readable problems with a move. Empty means legal. */

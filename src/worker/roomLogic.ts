@@ -585,6 +585,13 @@ export function advancePlay(s: RoomState, now: number, timeOnly = false): RoomSt
     if (res.ok) {
       cur = res.value;
       moved = true;
+      // In games where a turn is several moves (Tong-its: draw, then discard), a human whose time ran out has the
+      // rest of that turn played for them, so the clock does not start again on the same turn.
+      for (let n = 0; !level && engine.finishTurnOnTimeout === true && n < 6 && cur.play && !playIsOver(cur) && engine.toAct(cur.play.state) === who; n++) {
+        const next = playMove(cur, who, engine.timeoutMove(engine.viewFor(cur.play.state, who)), now);
+        if (!next.ok) break;
+        cur = next.value;
+      }
     }
   }
   if (moved) return cur;

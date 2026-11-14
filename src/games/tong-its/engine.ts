@@ -561,6 +561,12 @@ function timeoutMove(view: TiView): TiMove {
     const move = discardMeldMove(view.hand, view.melds, view.mustMeld);
     if (move) return move;
   }
+  // Throw away the highest card that is not in a suggested meld (the same melds the screen groups first).
+  const loose = organize(view.hand, 1)[0]?.deadwood ?? [];
+  if (loose.length > 0) {
+    const worst = [...loose].sort((a, b) => pointsOf(b) - pointsOf(a) || rankOf(b) - rankOf(a) || b - a)[0] as Card;
+    return { t: 'discard', card: worst };
+  }
   return { t: 'discard', card: (discardAdvice(view.hand, 1)[0] as { card: Card }).card };
 }
 
@@ -576,4 +582,6 @@ export const tongItsEngine: PlayEngine<TongItsSetup, TiState, TiMove, TiView> & 
   finalize,
   bot: tiBot,
   timeoutMove,
+  // a turn is draw, then (melds and) a discard; the same player never starts a new turn straight after their own
+  finishTurnOnTimeout: true,
 };

@@ -185,6 +185,16 @@ describe('how a hand ends', () => {
     expect(own.drawBlocked).toEqual([]);
   });
 
+  it('the time-out discard is the highest card outside the suggested melds', () => {
+    // 5-6-7 of hearts is a meld; the loose cards are K of clubs (10), 9 of spades (9) and 2 of diamonds (2)
+    const hand = [C('H', 5), C('H', 6), C('H', 7), C('C', 13), C('S', 9), C('D', 2)];
+    const s = base({ hands: { A: hand, B: [C('S', 13)], C: [C('S', 12)] }, phase: 'play', drew: 'stock' });
+    expect(E.timeoutMove(E.viewFor(s, 'A'))).toEqual({ t: 'discard', card: C('C', 13) });
+    // a meld card is never thrown even if it is higher: K-K-K is a meld, so the 9 goes
+    const s2 = base({ hands: { A: [C('S', 13), C('H', 13), C('D', 13), C('S', 9), C('D', 2)], B: [C('S', 1)], C: [C('S', 12)] }, phase: 'play', drew: 'stock' });
+    expect(E.timeoutMove(E.viewFor(s2, 'A'))).toEqual({ t: 'discard', card: C('S', 9) });
+  });
+
   it('hands saved before the Draw-block rule (no drawBlocked field) still play', () => {
     const melds = [{ id: 1, owner: 'A', kind: 'set' as const, cards: [C('S', 2), C('H', 2), C('D', 2)], hidden: false }];
     const old = base({ hands: { A: [C('S', 1)], B: [C('S', 13)], C: [C('S', 12)] }, melds, nextMeld: 2 });

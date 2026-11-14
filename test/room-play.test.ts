@@ -292,6 +292,24 @@ describe('playing a hand', () => {
   });
 });
 
+describe('time-outs in Poker', () => {
+  it('a timed-out player gets exactly one move, never their next street too (heads-up)', () => {
+    const r = createRoom({ name: 'K', gameId: 'poker', playerCount: 2, unit: 'pts', hostName: 'A', bots: ['normal'] }, 'ABCDE', H.host, T0);
+    if (!r.ok) throw new Error(r.message);
+    let d = ok(applyMessage(r.value, host(r.value), { t: 'deal', stake: 1, turnSeconds: 30 }, T0 + 10, 11));
+    let checked = 0;
+    for (let i = 0; i < 60 && d.play && playEnvelope(d, null)!.toAct !== null; i++) {
+      if (playEnvelope(d, null)!.toAct === 'p1') {
+        const before = d.play.moves;
+        d = advancePlay(d, d.play.turnStartedAt! + 30_000);
+        expect(d.play!.moves).toBe(before + 1);
+        checked++;
+      } else d = advancePlay(d, d.play.botAt!);
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+});
+
 describe('Tong-its in the app', () => {
   const tong = (bots: string[] = ['normal', 'hard']): RoomState => {
     const r = createRoom({ name: 'T', gameId: 'tong-its', playerCount: 3, unit: 'pts', hostName: 'A', bots }, 'ABCDE', H.host, T0);
@@ -304,6 +322,29 @@ describe('Tong-its in the app', () => {
     const v = e!.view as TiView;
     return v.phase === 'fight' ? { t: 'respond', challenge: false } : v.phase === 'draw' ? { t: 'draw', from: 'stock' } : v.mustMeld !== null ? null : { t: 'discard', card: v.hand[0] };
   };
+
+  it('when a human runs out of time the whole turn is played for them: draw from the stock, then discard (no second clock)', () => {
+    let d = tong();
+    d = ok(applyMessage(d, host(d), { t: 'deal', stake: 1, turnSeconds: 30 }, T0 + 10, 7));
+    // let the computers play until it is the human's draw
+    for (let i = 0; i < 40; i++) {
+      const v = playEnvelope(d, 'p1')!.view as TiView;
+      if (v.toAct === 'p1' && v.phase === 'draw') break;
+      if (v.toAct === 'p1') d = advancePlay(d, d.play!.turnStartedAt! + 30_000); // the dealer's opening discard
+      else d = advancePlay(d, d.play!.botAt!);
+    }
+    const before = playEnvelope(d, 'p1')!.view as TiView;
+    expect(before.toAct).toBe('p1');
+    expect(before.phase).toBe('draw');
+    const stock = before.stockCount;
+    const discards = before.discards.length;
+    const after = advancePlay(d, d.play!.turnStartedAt! + 30_000);
+    const v = playEnvelope(after, 'p1')!.view as TiView;
+    expect(v.stockCount).toBe(stock - 1); // drew from the stock
+    expect(v.discards.length).toBe(discards + 1); // and discarded
+    expect(v.toAct).not.toBe('p1'); // the turn is over
+    expect(v.hand).toHaveLength(before.hand.length); // one in, one out
+  });
 
   it('a solo table seats two computers and plays whole hands, scored and zero-sum, and the pot carries over', () => {
     let d = tong();
