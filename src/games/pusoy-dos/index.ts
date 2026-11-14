@@ -94,10 +94,15 @@ export function deuceMultiplier(mode: DeuceMode, deuces: number): number {
   return mode === 'pow2' ? 2 ** deuces : 2;
 }
 
-/** Penalty points for one player holding `cardsLeft` cards. */
-export function penalty(tiers: readonly Tier[], cardsLeft: number): number {
+/**
+ * Penalty points for one player holding `cardsLeft` cards. The tier tables are written for 13-card hands, where a
+ * tier starting at 13 means "never played a card". With a bigger hand (17 cards for three players) such a tier
+ * moves up with it, so it still means the whole hand: 13 to 16 cards left pay the 10+ rate and 17 pays the top rate.
+ */
+export function penalty(tiers: readonly Tier[], cardsLeft: number, startingHand = 13): number {
+  const shift = Math.max(0, startingHand - 13);
   let rate = 0;
-  for (const t of tiers) if (cardsLeft >= t.minCards) rate = t.perCard;
+  for (const t of tiers) if (cardsLeft >= (t.minCards >= 13 ? t.minCards + shift : t.minCards)) rate = t.perCard;
   return cardsLeft * rate;
 }
 
@@ -126,6 +131,7 @@ export const pusoyDos: GameModule<PusoyDosSetup, PusoyDosInput> = {
     if (!['off', 'pow2', 'double-once'].includes(raw.deuce as string)) problems.push('unknown deuce option');
     if (!['winner-only', 'pairwise'].includes(raw.settlement as string)) problems.push('unknown settlement option');
     if (!isInt(raw.startingHand) || raw.startingHand < 2 || raw.startingHand > 26) problems.push('cards dealt must be 2 to 26');
+    else if (raw.startingHand * playerCount > 52) problems.push(`${playerCount} players can be dealt at most ${Math.floor(52 / playerCount)} cards each`);
 
     const tiers = raw.tiers;
     if (!Array.isArray(tiers) || tiers.length < 1 || tiers.length > 6) {
@@ -228,7 +234,7 @@ export const pusoyDos: GameModule<PusoyDosSetup, PusoyDosInput> = {
       const s: Record<string, number> = {};
       let sum = 0;
       for (const id of players) {
-        s[id] = id === input.winner ? 0 : penalty(setup.tiers, left[id] ?? 0);
+        s[id] = id === input.winner ? 0 : penalty(setup.tiers, left[id] ?? 0, setup.startingHand);
         sum += s[id] as number;
       }
       const unit = input.stake * mult;

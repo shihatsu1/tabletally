@@ -68,7 +68,7 @@
 
   <label for="hand">{t('opt.hand')}</label>
   <select id="hand" value={String(setup.startingHand)} onchange={(e) => patch({ startingHand: Number.parseInt(e.currentTarget.value, 10) })}>
-    {#each [13, 17] as n (n)}<option value={String(n)}>{n}</option>{/each}
+    {#each [13, 17].filter((n) => n * playerCount <= 52) as n (n)}<option value={String(n)}>{n}</option>{/each}
   </select>
 {/if}
 

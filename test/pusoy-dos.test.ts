@@ -271,3 +271,22 @@ describe('hardening (from code review)', () => {
     expect(() => replay(exploding, setup(), P4, [{ type: 'round.add', id: 'r1', at: 1, by: 'h', input: { winner: 'A', stake: 1 } }])).toThrow(/could not be read/);
   });
 });
+
+describe('17-card hands (three players): the top tier still means "never played a card" (audit C01)', () => {
+  it('13 to 16 cards left pay the 10+ rate, and only all 17 pay the top rate', () => {
+    const standard = TIER_PRESETS.standard!;
+    expect(penalty(standard, 9, 17)).toBe(9);
+    expect(penalty(standard, 13, 17)).toBe(26);
+    expect(penalty(standard, 16, 17)).toBe(32);
+    expect(penalty(standard, 17, 17)).toBe(51);
+    // 13-card hands are unchanged
+    expect(penalty(standard, 12, 13)).toBe(24);
+    expect(penalty(standard, 13, 13)).toBe(39);
+  });
+
+  it('a hand size the deck cannot deal to every player is refused', () => {
+    const base = game.defaultSetup(4);
+    expect(game.validateSetup({ ...base, startingHand: 17 }, 4).length).toBeGreaterThan(0);
+    expect(game.validateSetup({ ...game.defaultSetup(3), startingHand: 17 }, 3)).toEqual([]);
+  });
+});

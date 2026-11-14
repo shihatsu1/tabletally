@@ -24,6 +24,10 @@ describe('Pagat preset (docs/rules/tong-its.md worked examples)', () => {
     expect(run(pagat(), { winner: 'B', ending: 'challenge', stake: 1, burned: ['C'] })).toEqual({ A: -3, B: 7, C: -4 });
   });
 
+  it('3 as written: A wins a challenged Draw, B pays 3, C (burned) pays 4: A +7, B -3, C -4', () => {
+    expect(run(pagat(), { winner: 'A', ending: 'challenge', stake: 1, burned: ['C'] })).toEqual({ A: 7, B: -3, C: -4 });
+  });
+
   it('stake scales every chip', () => {
     expect(run(pagat(), { winner: 'A', ending: 'normal', stake: 50, aces: 2, burned: ['C'] })).toEqual({ A: 350, B: -150, C: -200 });
   });
