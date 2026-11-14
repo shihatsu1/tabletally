@@ -17,7 +17,8 @@
     "stress": "vitest run --config vitest.stress.config.ts",
     "stress:quick": "STRESS_N=0.05 vitest run --config vitest.stress.config.ts",
     "i18n": "node tools/stress/i18n-audit.mjs",
-    "lint": "node tools/lint.mjs && node tools/stress/i18n-audit.mjs > /dev/null && echo \"i18n: English and Filipino match\""
+    "lint": "node tools/lint.mjs && node tools/stress/i18n-audit.mjs > /dev/null && echo \"i18n: English and Filipino match\"",
+    "e2e": "node tools/e2e.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261113.1",
@@ -25,6 +26,8 @@
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^26.6.6",
     "@types/qrcode": "^1.5.6",
+    "axe-core": "^4.10.2",
+    "playwright-core": "^1.49.1",
     "svelte": "^5.57.3",
     "svelte-check": "^4.7.8",
     "typescript": "^6.0.3",

@@ -18,11 +18,14 @@ jobs:
       - run: npm run build
       - run: npm run stress:quick
       # End-to-end: the real Worker and Durable Objects, locally (no Cloudflare account needed)
-      - name: Smoke test against wrangler dev
+      - name: Smoke and browser tests against wrangler dev
         run: |
           npx wrangler dev --port 8787 > wrangler.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:8787/ > /dev/null && break; sleep 1; done
           npm run smoke
+          # the Worker allows 10 new tables per address per minute; let the smoke test's window pass
+          sleep 61
+          npm run e2e
       - name: Show the Worker log if anything failed
         if: failure()
         run: cat wrangler.log || true
