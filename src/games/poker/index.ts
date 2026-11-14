@@ -3,14 +3,16 @@ import { MAX_AMOUNT, convertZeroSum } from '../../core/integer';
 import type { Net } from '../../core/settlement';
 
 /**
- * Poker (home cash game) money tracking. See docs/rules/poker.md. The app never sees hands, bets or pots:
- * one "round" is one session (a night). For each player the host enters every buy-in (the first buy-in
- * and any rebuys, in chips) and the final cash-out (chips). Chips in must equal chips out. If they do
- * not, the round is refused until an entry is fixed or the difference is assigned to one chosen player.
+ * Poker scoring. See docs/rules/poker.md. The app plays no-limit Hold'em with play chips (engine.ts); each
+ * finished hand becomes one round here: every player's stack at the start of the hand is their "buy-in"
+ * (a busted player's re-buy is a second entry) and their stack at the end is their "cash-out". Chips in
+ * must equal chips out; the scorer still accepts an `adjustTo` player for a difference, as a safety net.
  *
  *   net chips = cash-out - sum of buy-ins   (+ the difference, for the player it is assigned to)
- *   units     = net chips converted with the integer ratio `chips : moneyUnits`, largest remainder,
- *               so the converted totals still sum to exactly zero.
+ *   units     = the session's chips converted once with the integer ratio `chips : moneyUnits`:
+ *               convert(prior + net) - convert(prior), where `prior` is everyone's net chips from the
+ *               earlier hands. So the running totals always equal the whole session converted in one go,
+ *               and small wins are never rounded away hand by hand.
  */
 export interface PokerSetup {
   /** `chips` chips are worth `moneyUnits` of the room's unit. Two integers keep the math exact. */
@@ -30,6 +32,10 @@ export interface PokerInput {
   cashOuts: Record<string, number>;
   /** Whoever absorbs a chips-in vs chips-out difference. Required when the totals differ. */
   adjustTo?: string;
+  /** Net chips per player from the earlier hands of this session (zero-sum). Absent for the first hand. */
+  prior?: Record<string, number>;
+  /** How many hands came before this one; moves the tie-break seat along so no seat always gets it. */
+  seq?: number;
 }
 
 export const MAX_CHIPS = 1_000_000_000;
@@ -135,13 +141,29 @@ export const poker: GameModule<PokerSetup, PokerInput> = {
       problems.push('chips in equal chips out, so there is nothing to assign');
     }
     if (problems.length === 0 && Object.values(a.netChips).some((n) => Math.abs(n) > MAX_AMOUNT)) problems.push('round is too large');
+    const { prior, seq } = input;
+    if (prior !== undefined) {
+      const vals = isRecord(prior) ? players.map((id) => (has(prior, id) ? prior[id] : undefined)) : [];
+      if (!isRecord(prior) || Object.keys(prior).some((k) => !players.includes(k)) || !vals.every((v) => isInt(v) && Math.abs(v) <= MAX_AMOUNT)) {
+        problems.push('earlier chips must list each player once');
+      } else if ((vals as number[]).reduce((x, y) => x + y, 0) !== 0) problems.push('earlier chips must sum to zero');
+      else if (players.some((id) => Math.abs((prior[id] as number) + (a.netChips[id] as number)) > MAX_AMOUNT)) problems.push('round is too large');
+    }
+    if (seq !== undefined && (!isInt(seq) || seq < 0)) problems.push('hand number must be a whole number');
     return problems;
   },
 
   score(setup, players, input) {
     const a = analyze(players, input);
-    const chips = players.map((id) => (has(a.netChips, id) ? a.netChips[id] : 0) as number);
-    const units = convertZeroSum(chips, { chips: setup.chips, moneyUnits: setup.moneyUnits });
+    const ratio = { chips: setup.chips, moneyUnits: setup.moneyUnits };
+    const tie = input.seq ?? 0;
+    const before = players.map((id) => (input.prior && has(input.prior, id) ? (input.prior[id] as number) : 0));
+    const after = players.map((id, i) => (before[i] as number) + ((has(a.netChips, id) ? a.netChips[id] : 0) as number));
+    // `before` was last converted by the previous hand (tie-break seat tie - 1), so convert it the same way:
+    // the hands then telescope, and the running total is exactly the latest conversion of the whole session.
+    const was = convertZeroSum(before, ratio, tie - 1);
+    const now = convertZeroSum(after, ratio, tie);
+    const units = now.map((u, i) => u - (was[i] as number));
     // Object.fromEntries defines own properties, so even an id such as "__proto__" keeps its amount.
     return Object.fromEntries(players.map((id, i) => [id, (units[i] as number) + 0])) as Net;
   },

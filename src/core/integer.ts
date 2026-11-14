@@ -72,10 +72,14 @@ export function allocate(total: number, weights: readonly number[]): number[] {
  * the converted amounts equal to the converted sum of the inputs (so a zero-sum input stays
  * zero-sum). Amounts are rounded with the largest-remainder method on magnitudes, applied to
  * positives and negatives separately so signs are respected.
+ *
+ * Equal remainders are broken in seat order starting at `tieStart` (and wrapping), so a caller that moves
+ * `tieStart` along (for example by hand number) does not hand every tie to the first seat.
  */
 export function convertZeroSum(
   amounts: readonly number[],
   ratio: { chips: number; moneyUnits: number },
+  tieStart = 0,
 ): number[] {
   assertAmount(ratio.chips, 'ratio.chips');
   assertAmount(ratio.moneyUnits, 'ratio.moneyUnits');
@@ -96,8 +100,11 @@ export function convertZeroSum(
     return Number(q);
   };
   const remOf = (a: number): bigint => (BigInt(Math.abs(a)) * M) % R;
+  const n = amounts.length;
+  const start = Number.isSafeInteger(tieStart) && n > 0 ? ((tieStart % n) + n) % n : 0;
+  const seatAfter = (i: number): number => (i - start + n) % n;
 
-  const result = amounts.map((a) => Math.sign(a) * floorOf(a));
+  const result = amounts.map((a) => Math.sign(a) * floorOf(a) + 0); // + 0 turns a -0 into 0
   // Rounding down each magnitude leaves positives short and negatives short by the same total
   // only by coincidence, so fix the residual by rounding the largest remainders away from zero
   // on the side that needs it.
@@ -105,7 +112,7 @@ export function convertZeroSum(
   const order = amounts
     .map((a, i) => ({ i, a, r: remOf(a) }))
     .filter((e) => e.r > 0n)
-    .sort((x, y) => (x.r === y.r ? x.i - y.i : x.r > y.r ? -1 : 1));
+    .sort((x, y) => (x.r === y.r ? seatAfter(x.i) - seatAfter(y.i) : x.r > y.r ? -1 : 1));
   for (const e of order) {
     if (residual === 0) break;
     // residual > 0: need to increase the total, so bump positives up (+1).

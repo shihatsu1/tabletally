@@ -18,7 +18,7 @@ import { makeRng, shuffle, type Rng } from '../../core/rng';
 import type { Card } from '../cards';
 import { rankOf } from '../cards';
 import { eval5 } from '../pusoy/engine';
-import { MAX_CHIPS, blindsOf, type PokerInput, type PokerSetup } from './index';
+import { MAX_CHIPS, analyze, blindsOf, type PokerInput, type PokerSetup } from './index';
 
 // ------------------------------------------------------------------ hand evaluation
 
@@ -509,6 +509,16 @@ export const pokerEngine: PlayEngine<PokerSetup, PkState, PkMove, PkView> = {
   apply,
   viewFor,
   result,
+  finalize(input, _setup, history) {
+    // Carry the session's chips so the scorer converts the whole session at once (see PokerInput.prior).
+    const players = Object.keys((input as unknown as PokerInput).buyIns);
+    const prior: Record<string, number> = Object.fromEntries(players.map((id) => [id, 0]));
+    for (const h of history) {
+      const net = analyze(players, h as PokerInput).netChips;
+      for (const id of players) prior[id] = (prior[id] as number) + (net[id] ?? 0);
+    }
+    return { ...input, prior, seq: history.length };
+  },
   bot: pkBot,
   timeoutMove,
 };
