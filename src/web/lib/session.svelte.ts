@@ -55,8 +55,8 @@ function connect(): void {
       session.error = null;
       session.status = 'live';
     } else if (msg.t === 'lobby') {
-      session.lobby = msg.lobby;
-      session.status = 'live';
+      // Not seated (new here, or the host took this seat away): show the table preview and the name form.
+      Object.assign(session, { lobby: msg.lobby, room: null, play: null, you: null, status: 'live' });
     } else if (msg.t === 'react') {
       const id = ++reactionId;
       session.reactions = [...session.reactions.slice(-8), { id, from: msg.from, emoji: msg.emoji }];
@@ -154,9 +154,10 @@ export async function createRoom(params: {
       method: 'POST',
       body: JSON.stringify({ ...params, token: deviceToken() }),
     });
-    const body = (await res.json()) as { code: string; message?: string };
+    const body = (await res.json()) as { code: string; message?: string; hostKey?: string };
     if (!res.ok) return { ok: false, code: body.code, message: body.message ?? '' };
     setItem('tt.name', params.hostName);
+    if (body.hostKey) setItem(`tt.hostKey.${body.code}`, body.hostKey);
     return { ok: true, code: body.code };
   } catch {
     return { ok: false, code: 'network', message: '' };

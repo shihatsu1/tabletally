@@ -106,6 +106,7 @@
             <div class="row prow">
               <span class="grow">{p.name}{#if p.bot} <small class="dim">· {t(`level.${p.bot}`)}</small>{/if}</span>
               {#if canRename(p)}<button type="button" class="ghost" onclick={() => startRename(p)}>{t('room.rename')}</button>{/if}
+              {#if isHost && !p.bot && p.id !== youId}<button type="button" class="ghost" disabled={!live} onclick={() => send({ t: 'makeHost', playerId: p.id })}>{t('room.makeHost')}</button>{/if}
             </div>
           {/each}
           {#if editing}

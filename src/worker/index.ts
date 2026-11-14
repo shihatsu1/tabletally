@@ -3,6 +3,7 @@ import { cryptoRng } from '../core/rng';
 import { RateLimiter, originAllowed, randomCode, readBodyLimited } from './limits';
 import {
   MAX_MESSAGE_BYTES,
+  HOST_KEY_LENGTH,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
   ROOM_CODE_PATTERN,
@@ -19,6 +20,7 @@ import {
   isExpired,
   joinRoom,
   lobbyInfo,
+  reclaimHost,
   playEnvelope,
   wakeAt,
   type Actor,
@@ -82,7 +84,8 @@ export default {
         });
         if (res.status === 409) continue; // code already in use, try another
         if (!res.ok) return new Response(res.body, { status: res.status, headers: res.headers });
-        return json({ code });
+        const { hostKey } = (await res.json()) as { hostKey: string };
+        return json({ code, hostKey });
       }
       return json({ code: 'busy', message: 'Could not allocate a room code. Try again.' }, 503);
     }
@@ -169,10 +172,11 @@ export class Room extends DurableObject<Env> {
         params: Parameters<typeof createRoom>[0];
         token: string;
       };
-      const created = createRoom(params, code, await sha256Hex(token), Date.now());
+      const hostKey = randomCode(ROOM_CODE_ALPHABET, HOST_KEY_LENGTH, (n) => crypto.getRandomValues(new Uint8Array(n)));
+      const created = createRoom(params, code, await sha256Hex(token), Date.now(), await sha256Hex(hostKey));
       if (!created.ok) return json({ code: created.code, message: created.message }, 400);
       await this.save(created.value);
-      return json({ ok: true });
+      return json({ ok: true, hostKey });
     }
 
     if (url.pathname === '/status') {
@@ -224,6 +228,12 @@ export class Room extends DurableObject<Env> {
       const a = attachments[i];
       if (!a) return;
       const actor: Actor = actorFor(state, a.tokenHash);
+      // A phone without a seat (not joined yet, removed, or at a full table) only gets the preview: no names,
+      // no scores, no hands. A host who lost their seat's identity gets it back with the host key.
+      if (!actor.playerId) {
+        this.send(s, { t: 'lobby', lobby: lobbyInfo(state) });
+        return;
+      }
       // Each phone gets its own view of the hand: its own cards, and nobody else's.
       this.send(s, { t: 'state', room, you: { playerId: actor.playerId, isHost: actor.isHost }, now, play: playEnvelope(state, actor.playerId) });
     });
@@ -254,6 +264,7 @@ export class Room extends DurableObject<Env> {
     // Hash the device token BEFORE reading the room: awaiting between a read and a save would let another
     // message change the room in the gap, and this save would then overwrite it.
     const joinHash = parsed.t === 'join' ? await sha256Hex(parsed.token) : null;
+    const keyHash = parsed.t === 'reclaim' ? await sha256Hex(parsed.key) : null;
     const state = this.load();
     const now = Date.now();
     if (!state || isExpired(state, now)) {
@@ -267,7 +278,9 @@ export class Room extends DurableObject<Env> {
       const joined = joinRoom(state, tokenHash, parsed.name, now);
       if (!joined.ok) {
         // A new phone without a name yet, or a table it cannot join: show the table instead of an error.
+        // The phone is remembered (so it can sit down later, or use the host key) but sees only the preview.
         const noNameYet = joined.code === 'bad_name' && parsed.name.trim() === '';
+        ws.serializeAttachment({ tokenHash } satisfies Attachment);
         if (noNameYet || joined.code === 'room_full' || joined.code === 'game_started') this.send(ws, { t: 'lobby', lobby: lobbyInfo(state) });
         else this.send(ws, { t: 'error', code: joined.code, message: joined.message });
         return;
@@ -275,6 +288,23 @@ export class Room extends DurableObject<Env> {
       if (joined.value.state !== state) await this.save(joined.value.state);
       ws.serializeAttachment({ tokenHash } satisfies Attachment);
       this.broadcast(joined.value.state);
+      return;
+    }
+
+    if (parsed.t === 'reclaim' && keyHash) {
+      // The phone must have said who it is (a join) first; its token is in the socket attachment.
+      const who = ws.deserializeAttachment() as Attachment;
+      if (!who) {
+        this.send(ws, { t: 'error', code: 'not_joined', message: 'Join the room first.' });
+        return;
+      }
+      const back = reclaimHost(state, who.tokenHash, keyHash, now);
+      if (!back.ok) {
+        this.send(ws, { t: 'error', code: back.code, message: back.message });
+        return;
+      }
+      await this.save(back.value.state);
+      this.broadcast(back.value.state);
       return;
     }
 

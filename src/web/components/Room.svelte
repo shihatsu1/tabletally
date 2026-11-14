@@ -7,6 +7,7 @@
   import { t } from '../lib/i18n.svelte';
   import { leaveRoomIfCurrent, openRoom, roomGeneration, send, session, sitDown } from '../lib/session.svelte';
   import { getItem } from '../lib/storage';
+  import HostKey from './HostKey.svelte';
   import History from './History.svelte';
   import Invite from './Invite.svelte';
   import PlayScreen from './PlayScreen.svelte';
@@ -53,6 +54,9 @@
   const errorText = $derived(session.error ? t(`error.${session.error.code}`) !== `error.${session.error.code}` ? t(`error.${session.error.code}`) : session.error.message || t('error.generic') : '');
 
   let joinName = $state(getItem('tt.name') ?? '');
+  let keyText = $state('');
+  const keyOk = $derived(/^[A-Z2-9]{12}$/.test(keyText.replace(/[\s-]/g, '').toUpperCase()));
+  const reclaim = () => send({ t: 'reclaim', key: keyText.replace(/[\s-]/g, '').toUpperCase() });
   const handRunning = $derived(session.play !== null && session.play.toAct !== null);
   const levels = ['easy', 'normal', 'hard'] as const;
   // Hands that start from the last hand's chips (poker) cannot be voided.
@@ -81,8 +85,18 @@
       {#if errorText}<p class="error" role="alert">{errorText}</p>{/if}
     {:else}
       <p class="error" role="status">{t(lobby.status === 'full' ? 'lobby.full' : 'lobby.started')}</p>
+      {#if errorText}<p class="error" role="alert">{errorText}</p>{/if}
       <a class="btn" href="#/">{t('room.home')}</a>
     {/if}
+    <details class="hostback">
+      <summary>{t('lobby.imHost')}</summary>
+      <p class="dim note">{t('lobby.imHost.help')}</p>
+      <label for="host-key">{t('room.hostKey')}</label>
+      <div class="row">
+        <input id="host-key" bind:value={keyText} maxlength="20" autocapitalize="characters" autocomplete="off" spellcheck="false" />
+        <button type="button" class="primary nowrap" disabled={!keyOk || !live} onclick={reclaim}>{t('lobby.reclaim')}</button>
+      </div>
+    </details>
   </section>
 {:else if !room}
   <section class="card">
@@ -95,6 +109,7 @@
     {#snippet menu()}
       {@render botsCard()}
       {@render optionsCard()}
+      {#if isHost}<HostKey code={room.code} />{/if}
       {@render rulesCard()}
       <History {room} canVoid={isHost && !linked && !handRunning} />
       {@render keepCard()}
@@ -118,6 +133,7 @@
 
   {#if isHost}
     <Invite code={room.code} seated={room.players.length} total={room.playerCount} />
+    <HostKey code={room.code} />
   {:else}
     <p class="dim center">{t('room.waitingFor', { n: room.playerCount - room.players.length })}</p>
   {/if}
@@ -130,16 +146,17 @@
 {#snippet botsCard()}
   {#if room && isHost && room.history.length === 0 && session.play === null}
     <section class="card">
-      <h2>{t('room.addBot')}</h2>
+      <h2>{t('room.seatsTitle')}</h2>
       {#if !full}
         <div class="row wrap">
           {#each levels as l (l)}<button type="button" disabled={!live} onclick={() => send({ t: 'addBot', level: l })}>{t(`level.${l}`)}</button>{/each}
         </div>
       {/if}
-      {#each room.players.filter((p) => p.bot) as b (b.id)}
+      {#each room.players.filter((p) => p.id !== session.you?.playerId) as p (p.id)}
         <div class="row item">
-          <span class="grow">{b.name} · {t(`level.${b.bot ?? 'normal'}`)}</span>
-          <button type="button" class="ghost" disabled={!live} onclick={() => send({ t: 'removeBot', playerId: b.id })}>{t('room.removeBot')}</button>
+          <span class="grow">{p.name}{#if p.bot} · {t(`level.${p.bot}`)}{/if}</span>
+          {#if !p.bot}<button type="button" class="ghost" disabled={!live} onclick={() => send({ t: 'makeHost', playerId: p.id })}>{t('room.makeHost')}</button>{/if}
+          <button type="button" class="ghost" disabled={!live} onclick={() => send(p.bot ? { t: 'removeBot', playerId: p.id } : { t: 'removePlayer', playerId: p.id })}>{t('room.removeBot')}</button>
         </div>
       {/each}
     </section>
@@ -200,4 +217,6 @@
   .note-end { margin-bottom: 0; }
   .center { text-align: center; }
   .nowrap { white-space: nowrap; }
+  .hostback { margin-top: 14px; }
+  .hostback summary { cursor: pointer; color: var(--accent); min-height: 44px; display: flex; align-items: center; }
 </style>

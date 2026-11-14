@@ -8,6 +8,9 @@ export const TOKEN_PATTERN = /^[0-9a-f]{32,64}$/;
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0 O 1 I L
 /** 31 letters and digits, 6 long: about 887 million codes, so guessing a live table is impractical. */
 export const ROOM_CODE_LENGTH = 6;
+/** The host key: 12 characters from the same alphabet, shown once to the host when the table is made. */
+export const HOST_KEY_LENGTH = 12;
+export const HOST_KEY_PATTERN = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{12}$/;
 export const ROOM_CODE_PATTERN = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
 
 /** Quick reactions anyone seated can send. They are shown for a moment and never stored. */
@@ -21,6 +24,12 @@ export type ClientMessage =
   | { t: 'restore' }
   /** Change a name. Without `playerId` it renames you. The host may also rename computers. */
   | { t: 'rename'; name: string; playerId?: string }
+  /** Host: hand the host role to another seated person (not a computer). */
+  | { t: 'makeHost'; playerId: string }
+  /** Host: take a person's seat away before the first hand (they can sit down again while there is room). */
+  | { t: 'removePlayer'; playerId: string }
+  /** A phone that lost the host's identity: give the host key shown when the table was made, and take the host seat back. */
+  | { t: 'reclaim'; key: string }
   | { t: 'addBot'; level: BotLevel }
   | { t: 'removeBot'; playerId: string }
   /** Host: shuffle and deal the next hand (digital play). `turnSeconds` 0 means no time limit. */
@@ -129,6 +138,12 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
     case 'rename':
       if (typeof raw.name !== 'string') return null;
       return typeof raw.playerId === 'string' ? { t: 'rename', name: raw.name, playerId: raw.playerId } : { t: 'rename', name: raw.name };
+    case 'makeHost':
+      return typeof raw.playerId === 'string' ? { t: 'makeHost', playerId: raw.playerId } : null;
+    case 'removePlayer':
+      return typeof raw.playerId === 'string' ? { t: 'removePlayer', playerId: raw.playerId } : null;
+    case 'reclaim':
+      return typeof raw.key === 'string' && HOST_KEY_PATTERN.test(raw.key) ? { t: 'reclaim', key: raw.key } : null;
     case 'addBot':
       return typeof raw.level === 'string' && (BOT_LEVELS as readonly string[]).includes(raw.level) ? { t: 'addBot', level: raw.level as BotLevel } : null;
     case 'removeBot':

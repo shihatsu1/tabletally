@@ -541,6 +541,19 @@ const en: Record<string, string> = {
   'pusoy.play.rowTie': 'tie',
   'poker.stack': '{n} chips',
   'poker.dealer': 'Dealer',
+  'home.noStorage': 'This browser is not saving data (a private window, or site data is blocked). If the page reloads you lose your seat, and the host loses the host controls. Use a normal window to host.',
+  'room.hostKey': 'Host key',
+  'room.hostKey.help': 'Write this down. On another phone, open the table link and enter it under "I am the host" to take your seat back.',
+  'room.hostKey.show': 'Show',
+  'room.hostKey.hide': 'Hide',
+  'room.copyLink.short': 'Copy',
+  'room.makeHost': 'Make host',
+  'lobby.imHost': 'I am the host',
+  'lobby.imHost.help': 'Lost your seat (new phone, cleared browser)? Enter the host key you saved when you made the table.',
+  'lobby.reclaim': 'Take my seat',
+  'error.bad_key': 'That host key does not match this table.',
+  'error.already_seated': 'This phone already has another seat at this table.',
+  'error.rate_limited': 'Too many tries. Wait a minute and try again.',
 };
 
 const tl: Record<string, string> = {
@@ -837,6 +850,19 @@ const tl: Record<string, string> = {
   'pusoy.play.rowTie': 'tabla',
   'poker.stack': '{n} chips',
   'poker.dealer': 'Dealer',
+  'home.noStorage': 'Hindi nagse-save ng data ang browser na ito (private window, o naka-block ang site data). Kapag nag-reload ang page, mawawala ang upuan mo at ang kontrol ng host. Gumamit ng karaniwang window para mag-host.',
+  'room.hostKey': 'Susi ng host',
+  'room.hostKey.help': 'Isulat ito. Sa ibang phone, buksan ang link ng mesa at ilagay ito sa "Ako ang host" para mabawi ang upuan mo.',
+  'room.hostKey.show': 'Ipakita',
+  'room.hostKey.hide': 'Itago',
+  'room.copyLink.short': 'Kopyahin',
+  'room.makeHost': 'Gawing host',
+  'lobby.imHost': 'Ako ang host',
+  'lobby.imHost.help': 'Nawala ang upuan mo (bagong phone, nalinis ang browser)? Ilagay ang susi ng host na itinago mo nang gawin ang mesa.',
+  'lobby.reclaim': 'Bawiin ang upuan ko',
+  'error.bad_key': 'Hindi tugma ang susi ng host sa mesang ito.',
+  'error.already_seated': 'May ibang upuan na ang phone na ito sa mesang ito.',
+  'error.rate_limited': 'Sobrang dami ng subok. Maghintay ng isang minuto at subukan ulit.',
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = { en, tl };

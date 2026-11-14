@@ -6,9 +6,10 @@
   import { ROOM_CODE_LENGTH, ROOM_CODE_PATTERN } from '../../shared/protocol';
   import { t } from '../lib/i18n.svelte';
   import { createRoom } from '../lib/session.svelte';
-  import { getItem } from '../lib/storage';
+  import { canPersist, getItem } from '../lib/storage';
 
   const gameList = Object.values(games);
+  const persists = canPersist();
 
   let roomName = $state(t('home.roomNameDefault'));
   let gameId = $state(gameList[0]?.id ?? '');
@@ -127,6 +128,7 @@
   <label for="host-name">{t('home.yourName')}</label>
   <input id="host-name" bind:value={hostName} maxlength="24" autocomplete="nickname" required />
 
+  {#if !persists}<p class="warn" role="note">{t('home.noStorage')}</p>{/if}
   {#if error}<p class="error" role="alert">{error}</p>{/if}
   <button type="submit" class="primary" style="width: 100%; margin-top: 16px" disabled={busy}>
     {busy ? t('home.creating') : t('home.createBtn')}
@@ -143,5 +145,6 @@
   .opts { border: 1px solid var(--line); border-radius: 12px; margin: 16px 0 0; padding: 4px 14px 14px; }
   .opts legend { font-size: .85rem; color: var(--text-dim); padding: 0 6px; }
   .small { margin: 6px 0 0; font-size: .85rem; }
+  .warn { margin: 14px 0 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--neg); font-size: .9rem; }
   .code { text-transform: uppercase; letter-spacing: .3em; font-family: var(--font-display); font-size: 1.3rem; }
 </style>

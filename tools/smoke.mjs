@@ -333,6 +333,26 @@ check('cross-origin socket is refused', crossOrigin === 403, String(crossOrigin)
   solo.ws.close();
 }
 
+// ---- a host on a new phone takes their seat back with the host key
+{
+  const tok = token();
+  const mk = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ name: 'Keys', gameId: 'pusoy-dos', playerCount: 2, unit: 'pts', hostName: 'A', token: tok, bots: ['easy'] }) });
+  const made = await mk.json();
+  check('creating a table returns a host key', /^[A-Z2-9]{12}$/.test(made.hostKey ?? ''), JSON.stringify(made));
+  const phone = connect(made.code, token(), '');
+  await phone.open;
+  phone.join();
+  const pre = await phone.next();
+  check('a new phone at a full table sees only the preview', pre.t === 'lobby' && pre.lobby.status === 'full' && !JSON.stringify(pre).includes('"players"'), JSON.stringify(pre));
+  phone.send({ t: 'reclaim', key: 'ABCDEFGHJKMN' });
+  const wrong = await phone.next((m) => m.t === 'error');
+  check('a wrong host key is refused', wrong.code === 'bad_key', JSON.stringify(wrong));
+  phone.send({ t: 'reclaim', key: made.hostKey });
+  const back = await phone.next((m) => m.t === 'state');
+  check('the right host key gives the host seat back', back.you.isHost && back.you.playerId === 'p1');
+  phone.ws.close();
+}
+
 // ---- the public routes hold up against junk (audit S01-S04)
 {
   const opaque = await upgradeStatus(`/api/rooms/${code}/ws`, 'null');

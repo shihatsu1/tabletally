@@ -10,6 +10,7 @@ import {
   isExpired,
   joinRoom,
   lobbyInfo,
+  reclaimHost,
   type RoomState,
 } from '../src/worker/roomLogic';
 import { cleanName, parseClientMessage } from '../src/shared/protocol';
@@ -269,5 +270,58 @@ describe('game options (setup)', () => {
     expect(ok.ok).toBe(true);
     const bad = createRoom({ name: 'x', gameId: 'pusoy-dos', playerCount: 3, unit: 'pts', hostName: 'A', setup: { scoring: 'nope' } }, 'ABCDE', H.host, T0);
     expect(bad.ok ? 'ok' : bad.code).toBe('bad_setup');
+  });
+});
+
+describe('host recovery, handover and seat removal (audit R02/R03)', () => {
+  const KEY = 'k'.repeat(64);
+  const withKey = (): RoomState => ({ ...seated(), hostKeyHash: KEY });
+
+  it('the host key moves the host seat and role to a new phone; the old identity stops working', () => {
+    const s = withKey();
+    const back = reclaimHost(s, H.x, KEY, T0 + 9);
+    if (!back.ok) throw new Error(back.message);
+    expect(back.value.actor).toEqual({ playerId: 'p1', isHost: true });
+    expect(actorFor(back.value.state, H.host)).toEqual({ playerId: null, isHost: false });
+    expect(back.value.state.players[0]).toMatchObject({ id: 'p1', name: 'A', tokenHash: H.x });
+  });
+
+  it('a wrong key, a table without a key, or a phone that already has another seat are refused', () => {
+    const s = withKey();
+    const c = (r: ReturnType<typeof reclaimHost>) => (r.ok ? 'ok' : r.code);
+    expect(c(reclaimHost(s, H.x, 'z'.repeat(64), T0))).toBe('bad_key');
+    expect(c(reclaimHost({ ...s, hostKeyHash: null }, H.x, KEY, T0))).toBe('bad_key');
+    expect(c(reclaimHost(s, H.a, KEY, T0))).toBe('already_seated');
+  });
+
+  it('the host can hand the role to a seated person (not a computer); the old key stops working', () => {
+    const s = withKey();
+    const moved = applyMessage(s, host(s), { t: 'makeHost', playerId: 'p2' }, T0 + 5);
+    if (!moved.ok) throw new Error(moved.message);
+    expect(actorFor(moved.value, H.a)).toEqual({ playerId: 'p2', isHost: true });
+    expect(actorFor(moved.value, H.host)).toEqual({ playerId: 'p1', isHost: false });
+    expect(moved.value.hostKeyHash).toBeNull();
+    expect(code(applyMessage(s, actorFor(s, H.a), { t: 'makeHost', playerId: 'p2' }, T0))).toBe('not_host');
+    expect(code(applyMessage(s, host(s), { t: 'makeHost', playerId: 'p9' }, T0))).toBe('no_such_player');
+  });
+
+  it('the host can take a seat away before the first hand, never their own, and not after hands start', () => {
+    const s = seated();
+    const gone = applyMessage(s, host(s), { t: 'removePlayer', playerId: 'p3' }, T0 + 5);
+    if (!gone.ok) throw new Error(gone.message);
+    expect(gone.value.players.map((p) => p.id)).toEqual(['p1', 'p2', 'p4']);
+    // the removed phone can sit down again while there is room
+    const again = joinRoom(gone.value, H.b, 'C', T0 + 6);
+    expect(again.ok && again.value.actor.playerId).toBe('p5');
+    expect(code(applyMessage(s, host(s), { t: 'removePlayer', playerId: 'p1' }, T0))).toBe('not_allowed');
+    expect(code(applyMessage(s, actorFor(s, H.a), { t: 'removePlayer', playerId: 'p3' }, T0))).toBe('not_host');
+    const started = recorded(s, [{ winner: 'p1', stake: 5 }]);
+    expect(code(applyMessage(started, host(started), { t: 'removePlayer', playerId: 'p3' }, T0))).toBe('game_started');
+  });
+
+  it('parses the new messages strictly', () => {
+    expect(parseClientMessage({ t: 'reclaim', key: 'ABCDEFGHJKMN' })).toEqual({ t: 'reclaim', key: 'ABCDEFGHJKMN' });
+    expect(parseClientMessage({ t: 'reclaim', key: 'short' })).toBeNull();
+    expect(parseClientMessage({ t: 'makeHost', playerId: 5 })).toBeNull();
   });
 });

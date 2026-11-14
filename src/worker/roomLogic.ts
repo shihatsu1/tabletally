@@ -55,6 +55,8 @@ export interface RoomState {
   playerCount: number;
   unit: string;
   hostHash: string;
+  /** SHA-256 of the host key shown once at creation. Cleared when the host role is handed over. */
+  hostKeyHash?: string | null;
   players: PlayerRec[];
   events: LedgerEvent<unknown>[];
   nextRound: number;
@@ -98,6 +100,7 @@ export function createRoom(
   code: string,
   hostHash: string,
   now: number,
+  hostKeyHash: string | null = null,
 ): Result<RoomState> {
   const name = typeof p.name === 'string' ? p.name.replace(/\s+/g, ' ').trim() : '';
   if (name.length < 1 || name.length > MAX_ROOM_NAME) return fail('bad_name', 'Room name must be 1 to 40 characters.');
@@ -146,6 +149,7 @@ export function createRoom(
       playerCount,
       unit,
       hostHash,
+      hostKeyHash,
       players,
       events: [],
       nextRound: 1,
@@ -202,6 +206,20 @@ export function joinRoom(
     lastActivityAt: now,
   };
   return { ok: true, value: { state, actor: { playerId: id, isHost: tokenHash === s.hostHash } } };
+}
+
+/**
+ * Take the host seat back with the host key, from a phone that lost the host's identity (cleared storage, new
+ * phone). The host's seat and the host role move to this phone; the old identity stops working.
+ */
+export function reclaimHost(s: RoomState, tokenHash: string, keyHash: string, now: number): Result<{ state: RoomState; actor: Actor }> {
+  if (!s.hostKeyHash || keyHash !== s.hostKeyHash) return fail('bad_key', 'That host key does not match this table.');
+  const seat = s.players.find((pl) => pl.tokenHash === s.hostHash);
+  const mine = s.players.find((pl) => pl.tokenHash === tokenHash);
+  if (mine && mine !== seat) return fail('already_seated', 'This phone already has another seat at this table.');
+  if (!seat) return fail('no_such_player', 'The host seat could not be found.');
+  const players = s.players.map((pl) => (pl === seat ? { ...pl, tokenHash } : pl));
+  return { ok: true, value: { state: { ...s, players, hostHash: tokenHash, lastActivityAt: now }, actor: { playerId: seat.id, isHost: true } } };
 }
 
 /** The table as a phone that is not seated may see it. No names of players, no scores. */
@@ -265,6 +283,26 @@ export function applyMessage(
     }
     case 'rename':
       return rename(s, actor, msg.name, msg.playerId, now);
+    case 'makeHost': {
+      const denied = hostOnly();
+      if (denied) return denied;
+      const who = s.players.find((pl) => pl.id === msg.playerId);
+      if (!who || who.bot || !who.tokenHash) return fail('no_such_player', 'Pick a person at this table.');
+      if (who.tokenHash === s.hostHash) return { ok: true, value: s };
+      // The key belonged to the old host, so it stops working; the new host is this person's own phone.
+      return { ok: true, value: { ...s, hostHash: who.tokenHash, hostKeyHash: null, lastActivityAt: now } };
+    }
+    case 'removePlayer': {
+      const denied = hostOnly();
+      if (denied) return denied;
+      if (s.events.length > 0 || s.play) return fail('game_started', 'Hands have started, so seats are fixed.');
+      const who = s.players.find((pl) => pl.id === msg.playerId);
+      if (!who) return fail('no_such_player', 'That player is not at this table.');
+      if (who.tokenHash === s.hostHash) return fail('not_allowed', 'The host cannot remove their own seat.');
+      return { ok: true, value: { ...s, players: s.players.filter((pl) => pl.id !== msg.playerId), lastActivityAt: now } };
+    }
+    case 'reclaim':
+      return fail('bad_message', 'Unsupported message.'); // handled by the Worker, which hashes the key first
     case 'addBot': {
       const denied = hostOnly();
       if (denied) return denied;
