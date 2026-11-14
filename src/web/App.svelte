@@ -14,7 +14,7 @@
   $effect(() => setLang(ui.lang));
 
   const roomCode = $derived.by(() => {
-    const m = /^#\/r\/([A-Za-z0-9]{5})$/.exec(hash);
+    const m = /^#\/r\/([A-Za-z0-9]{1,12})$/.exec(hash);
     const code = m?.[1]?.toUpperCase() ?? null;
     return code && ROOM_CODE_PATTERN.test(code) ? code : null;
   });
@@ -22,8 +22,8 @@
 
 <main>
   <nav class="row">
-    <a class="grow" href="#/" aria-label="TableTally">TableTally</a>
-    <button type="button" class="ghost tog" aria-pressed={fx.sound} onclick={() => setSound(!fx.sound)}>{t('nav.sound')}: {fx.sound ? 'on' : 'off'}</button>
+    <a class="grow brand" href="#/">TableTally</a>
+    <button type="button" class="ghost tog" aria-pressed={fx.sound} onclick={() => setSound(!fx.sound)}>{t('nav.sound')}: {t(fx.sound ? 'nav.on' : 'nav.off')}</button>
     <label class="sr-only" for="lang">{t('nav.language')}</label>
     <select id="lang" value={ui.lang} onchange={(e) => setLang(e.currentTarget.value === 'tl' ? 'tl' : 'en')}>
       <option value="en">English</option>
@@ -44,9 +44,10 @@
   main { max-width: 520px; margin: 0 auto; padding: 10px 0 40px; }
   nav { margin-top: 6px; }
   nav a { font-family: var(--font-display); color: var(--accent); text-decoration: none; font-weight: 700; }
-  nav select { width: auto; min-height: 40px; }
+  .brand { display: inline-flex; align-items: center; min-height: 44px; }
+  nav select { width: auto; min-height: 44px; }
   nav { flex-wrap: wrap; }
-  .tog { min-height: 40px; padding: .3em .8em; font-size: .85rem; }
+  .tog { min-height: 44px; padding: .3em .8em; font-size: .85rem; }
   .tog[aria-pressed='true'] { border-color: var(--pos); color: var(--pos); }
   footer { font-size: .8rem; margin-top: 28px; text-align: center; }
 </style>

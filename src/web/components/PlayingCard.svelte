@@ -1,50 +1,69 @@
 <script lang="ts">
   import { RANK_LABELS, rankOf, suitOf } from '../../games/cards';
+  import { t } from '../lib/i18n.svelte';
 
   interface Props {
-    card: number;
+    /** 0..51, or null for a face-down card. */
+    card: number | null;
     selected?: boolean;
-    /** Smaller card for melds and reveals. */
-    small?: boolean;
-    /** Exact width in px (overrides `small`). Height follows. */
+    /** Width in px. Height follows the real card ratio. */
     size?: number;
     onclick?: () => void;
   }
-  let { card, selected = false, small = false, size, onclick }: Props = $props();
+  let { card, selected = false, size = 46, onclick }: Props = $props();
 
-  // Card suits are S H D C.
+  // Card suits are S H D C (the sprite's rows); ranks A..K are its columns.
   const GLYPH = ['♠', '♥', '♦', '♣'];
-  const NAME = ['spades', 'hearts', 'diamonds', 'clubs'];
-  const red = $derived(suitOf(card) === 1 || suitOf(card) === 2);
-  const label = $derived(`${RANK_LABELS[rankOf(card) - 1]} of ${NAME[suitOf(card)]}`);
-  const w = $derived(size ?? (small ? 30 : 46));
-  const rank = $derived(RANK_LABELS[rankOf(card) - 1]);
-  const glyph = $derived(GLYPH[suitOf(card)]);
+  const SUIT_KEY = ['spades', 'hearts', 'diamonds', 'clubs'];
+  const rank = $derived(card === null ? '' : (RANK_LABELS[rankOf(card) - 1] ?? ''));
+  const suit = $derived(card === null ? 0 : suitOf(card));
+  const red = $derived(suit === 1 || suit === 2);
+  const label = $derived(card === null ? t('card.back') : t('card.name', { rank, suit: t(`card.${SUIT_KEY[suit]}`) }));
+  // Below this width the printed corner index is too small to read, so a mini face (big rank and suit) is drawn.
+  const MINI_BELOW = 40;
+  const mini = $derived(size < MINI_BELOW);
+  // Position in the 13 x 4 sprite, as background percentages.
+  const pos = $derived(card === null ? '' : `${((rankOf(card) - 1) * 100) / 12}% ${(suit * 100) / 3}%`);
 </script>
 
+{#snippet face()}
+  {#if card === null}
+    <span class="back" aria-hidden="true"></span>
+  {:else}
+    <!-- on full-size cards the text index is a fallback that only shows if the card image cannot load -->
+    <span class="idx" class:red class:mini aria-hidden="true"><b>{rank}</b><i>{GLYPH[suit]}</i></span>
+    {#if !mini}<span class="art" style="background-position: {pos}" aria-hidden="true"></span>{/if}
+  {/if}
+{/snippet}
+
 {#if onclick}
-  <button type="button" class="card-face" class:red class:selected style="--cw: {w}px" aria-pressed={selected} aria-label={label} {onclick}>
-    <span class="idx"><b>{rank}</b><i>{glyph}</i></span><span class="pip">{glyph}</span>
-  </button>
+  <button type="button" class="card" class:selected style="--cw: {size}px" aria-pressed={selected} aria-label={label} {onclick}>{@render face()}</button>
 {:else}
-  <span class="card-face" class:red style="--cw: {w}px" role="img" aria-label={label}>
-    <span class="idx"><b>{rank}</b><i>{glyph}</i></span><span class="pip">{glyph}</span>
-  </span>
+  <span class="card" class:selected style="--cw: {size}px" role="img" aria-label={label}>{@render face()}</span>
 {/if}
 
 <style>
-  .card-face {
-    position: relative; display: inline-block; flex: none;
-    width: var(--cw); height: calc(var(--cw) * 1.4); padding: 0; border-radius: calc(var(--cw) * .14);
-    border: 1px solid #b9ad8a; background: #fbf5e1; color: #1d1608; font-family: var(--font-display);
-    box-shadow: 0 2px 6px rgba(0,0,0,.35); transition: transform .12s ease; min-height: 0; cursor: default;
+  .card {
+    position: relative; display: block; flex: none; overflow: hidden;
+    width: var(--cw); height: calc(var(--cw) * 1.4536); padding: 0; min-height: 0;
+    border-radius: calc(var(--cw) * .065); border: 1px solid #b9b2a0; background: #fff;
+    box-shadow: -1px 2px 5px rgba(0,0,0,.4); cursor: default; color: #1d1608;
   }
-  button.card-face { cursor: pointer; }
-  .red { color: #c0392b; }
-  .idx { position: absolute; left: calc(var(--cw) * .09); top: calc(var(--cw) * .05); display: flex; flex-direction: column; align-items: center; line-height: .95; }
-  .idx b { font-size: calc(var(--cw) * .32); font-weight: 800; }
-  .idx i { font-style: normal; font-size: calc(var(--cw) * .28); }
-  .pip { position: absolute; right: calc(var(--cw) * .1); bottom: calc(var(--cw) * .06); font-size: calc(var(--cw) * .5); line-height: 1; opacity: .9; }
-  .selected { transform: translateY(calc(var(--cw) * -.22)); border-color: var(--brass); box-shadow: 0 0 0 2px var(--brass), 0 6px 12px rgba(0,0,0,.45); }
-  @media (prefers-reduced-motion: reduce) { .card-face { transition: none; } }
+  button.card { cursor: pointer; }
+  .selected { border-color: var(--brass); box-shadow: 0 0 0 3px var(--brass), 0 6px 14px rgba(0,0,0,.5); }
+  .idx { position: absolute; left: 6%; top: 3%; display: flex; flex-direction: column; align-items: center; line-height: .95; font-family: var(--font-display); }
+  .idx b { font-size: calc(var(--cw) * .24); }
+  .idx i { font-style: normal; font-size: calc(var(--cw) * .22); }
+  .idx.red { color: #c0392b; }
+  .idx.mini { left: 0; right: 0; top: 4%; font-family: var(--font-ui); font-weight: 800; }
+  .idx.mini b { font-size: calc(var(--cw) * .5); letter-spacing: -.04em; }
+  .idx.mini i { font-size: calc(var(--cw) * .48); }
+  .art { position: absolute; inset: 0; background-image: url('/cards/deck.webp'); background-size: 1300% 400%; background-repeat: no-repeat; }
+  .back {
+    position: absolute; inset: 0; border-radius: inherit; border: calc(var(--cw) * .06) solid #fbf5e1;
+    background:
+      repeating-linear-gradient(45deg, rgba(201,162,75,.55) 0 2px, transparent 2px 7px),
+      repeating-linear-gradient(-45deg, rgba(201,162,75,.55) 0 2px, transparent 2px 7px),
+      var(--felt-800, #0b3b2e);
+  }
 </style>

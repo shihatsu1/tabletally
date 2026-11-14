@@ -16,6 +16,7 @@ import {
   createRoom,
   isExpired,
   joinRoom,
+  lobbyInfo,
   playEnvelope,
   wakeAt,
   type Actor,
@@ -202,7 +203,7 @@ export class Room extends DurableObject<Env> {
     }
     let room;
     try {
-      room = buildView(state, connected, now);
+      room = buildView(state, connected);
     } catch (e) {
       for (const s of sockets) this.send(s, { t: 'error', code: 'corrupt', message: 'Room data could not be read.' });
       console.error('buildView failed', e);
@@ -254,7 +255,10 @@ export class Room extends DurableObject<Env> {
       const tokenHash = joinHash;
       const joined = joinRoom(state, tokenHash, parsed.name, now);
       if (!joined.ok) {
-        this.send(ws, { t: 'error', code: joined.code, message: joined.message });
+        // A new phone without a name yet, or a table it cannot join: show the table instead of an error.
+        const noNameYet = joined.code === 'bad_name' && parsed.name.trim() === '';
+        if (noNameYet || joined.code === 'room_full' || joined.code === 'game_started') this.send(ws, { t: 'lobby', lobby: lobbyInfo(state) });
+        else this.send(ws, { t: 'error', code: joined.code, message: joined.message });
         return;
       }
       if (joined.value.state !== state) await this.save(joined.value.state);

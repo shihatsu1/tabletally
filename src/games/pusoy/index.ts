@@ -125,6 +125,25 @@ export interface Detail {
   fouls: string[];
   royaltyHolders: string[];
   naturalHolders: string[];
+  /**
+   * One entry per pair, keyed `a|b` in seat order: how each row went for `a` (1 won, -1 lost, 0 tie or not
+   * compared), how the pair was settled, and the units `a` won from `b` (negative when `a` paid).
+   */
+  pairs: Record<string, PairResult>;
+}
+
+export interface PairResult {
+  rows: [number, number, number];
+  how: 'rows' | 'natural' | 'foul' | 'both-fouled';
+  units: number;
+}
+
+/** A pair result seen from `me` against `other`, whichever order they sit in. */
+export function pairFor(d: Pick<Detail, 'pairs'>, me: string, other: string): PairResult | null {
+  const direct = d.pairs[`${me}|${other}`];
+  if (direct) return direct;
+  const back = d.pairs[`${other}|${me}`];
+  return back ? { rows: back.rows.map((r) => -r) as [number, number, number], how: back.how, units: -back.units } : null;
 }
 
 /** Score a round in units, and say what happened. Pure; the validators must have passed first. */
@@ -135,6 +154,7 @@ export function analyze(setup: PusoySetup, players: readonly string[], input: Pu
   const ranks = ROWS.map((row) => rankMap(input.rows[row]));
   const units: Record<string, number> = Object.fromEntries(players.map((p) => [p, 0]));
   const scoops: Detail['scoops'] = [];
+  const pairs: Detail['pairs'] = {};
   const give = (from: string, to: string, n: number) => {
     units[from] = (units[from] as number) - n;
     units[to] = (units[to] as number) + n;
@@ -151,7 +171,14 @@ export function analyze(setup: PusoySetup, players: readonly string[], input: Pu
       const j = players[b] as string;
       const fi = fouls.has(i);
       const fj = fouls.has(j);
-      if (fi && fj) continue;
+      const before = units[i] as number;
+      const record = (how: PairResult['how'], rows: [number, number, number] = [0, 0, 0]) => {
+        pairs[`${i}|${j}`] = { rows, how, units: (units[i] as number) - before };
+      };
+      if (fi && fj) {
+        record('both-fouled');
+        continue;
+      }
 
       if (fi || fj) {
         // the valid player collects the foul payment, and their own royalties from the fouler
@@ -159,6 +186,7 @@ export function analyze(setup: PusoySetup, players: readonly string[], input: Pu
         give(bad, valid, foulUnits);
         scoops.push({ winner: valid, loser: bad });
         for (const row of ROWS) give(bad, valid, royaltyOf(valid, row));
+        record('foul');
         continue;
       }
 
@@ -167,14 +195,17 @@ export function analyze(setup: PusoySetup, players: readonly string[], input: Pu
       if (hasNat(i) || hasNat(j)) {
         if (ni > nj) give(j, i, ni);
         else if (nj > ni) give(i, j, nj);
+        record('natural');
         continue; // equal naturals draw; rows are never compared against a natural
       }
 
       let won = 0;
       let lost = 0;
+      const rowResult: [number, number, number] = [0, 0, 0];
       ranks.forEach((r, k) => {
         const ri = r.get(i) as number;
         const rj = r.get(j) as number;
+        rowResult[k] = ri < rj ? 1 : rj < ri ? -1 : 0;
         if (ri < rj) {
           won++;
           if (setup.royaltyMode === 'on-win') give(j, i, royaltyOf(i, ROWS[k] as RowKey));
@@ -201,12 +232,13 @@ export function analyze(setup: PusoySetup, players: readonly string[], input: Pu
         scoops.push({ winner: j, loser: i });
       }
       give(j, i, u);
+      record('rows', rowResult);
     }
   }
 
   const royaltyHolders = players.filter((p) => !fouls.has(p) && ROWS.some((r) => royaltyOf(p, r) > 0));
   const naturalHolders = players.filter((p) => hasNat(p));
-  return { units, scoops, fouls: players.filter((p) => fouls.has(p)), royaltyHolders, naturalHolders };
+  return { units, scoops, fouls: players.filter((p) => fouls.has(p)), royaltyHolders, naturalHolders, pairs };
 }
 
 function validRanking(r: unknown, expected: readonly string[]): boolean {

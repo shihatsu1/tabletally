@@ -11,7 +11,9 @@ export const banners = $state<{ current: Banner | null }>({ current: null });
 const queue: Banner[] = [];
 let nextId = 1;
 let timer: ReturnType<typeof setTimeout> | undefined;
-const SHOW_MS = 1500;
+const SHOW_MS = 1200;
+/** At most this many callouts per hand, so the table is never covered for long. */
+const PER_HAND = 3;
 
 function advance(): void {
   const next = queue.shift();
@@ -19,11 +21,12 @@ function advance(): void {
   if (next) timer = setTimeout(advance, SHOW_MS);
 }
 
+/** Show the callouts for a newly recorded hand. Anything still queued from an older hand is dropped. */
 export function pushBanners(items: { text: string; tone: Tone }[]): void {
-  for (const it of items.slice(0, 4)) {
-    if (queue.length < 6) queue.push({ id: nextId++, ...it });
-  }
-  if (!banners.current) advance();
+  clearTimeout(timer);
+  queue.length = 0;
+  for (const it of items.slice(0, PER_HAND)) queue.push({ id: nextId++, ...it });
+  advance();
 }
 
 export function clearBanners(): void {

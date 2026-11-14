@@ -9,6 +9,8 @@ import type { Net } from './settlement';
 export type LedgerEvent<Input = unknown> =
   | { type: 'round.add'; id: string; at: number; by: string; input: Input }
   | { type: 'round.undo'; at: number; by: string }
+  /** Bring back the round removed by the undo just before it (nothing else may come in between). */
+  | { type: 'round.restore'; at: number; by: string }
   | { type: 'round.edit'; id: string; at: number; by: string; reason: string; input: Input };
 
 export interface Round<Input = unknown> {
@@ -22,7 +24,7 @@ export interface Round<Input = unknown> {
 export interface HistoryEntry {
   at: number;
   by: string;
-  action: 'add' | 'undo' | 'edit';
+  action: 'add' | 'undo' | 'restore' | 'edit';
   roundId: string;
   reason?: string;
 }
@@ -44,6 +46,8 @@ export function replay<Setup, Input>(
 ): LedgerState<Input> {
   const rounds: Round<Input>[] = [];
   const history: HistoryEntry[] = [];
+  /** The round the previous event undid, while it can still be restored. */
+  let undone: Round<Input> | null = null;
 
   const scoreOrThrow = (input: Input): Net => {
     let problems: string[];
@@ -74,12 +78,21 @@ export function replay<Setup, Input>(
         }
         rounds.push({ id: ev.id, input: ev.input, delta: scoreOrThrow(ev.input), edited: false });
         history.push({ at: ev.at, by: ev.by, action: 'add', roundId: ev.id });
+        undone = null;
         break;
       }
       case 'round.undo': {
         const last = rounds.pop();
         if (!last) throw new LedgerError('nothing to undo');
         history.push({ at: ev.at, by: ev.by, action: 'undo', roundId: last.id });
+        undone = last;
+        break;
+      }
+      case 'round.restore': {
+        if (!undone) throw new LedgerError('nothing to restore');
+        rounds.push(undone);
+        history.push({ at: ev.at, by: ev.by, action: 'restore', roundId: undone.id });
+        undone = null;
         break;
       }
       case 'round.edit': {
@@ -89,6 +102,7 @@ export function replay<Setup, Input>(
         if (i < 0) throw new LedgerError(`unknown round ${ev.id}`);
         rounds[i] = { id: ev.id, input: ev.input, delta: scoreOrThrow(ev.input), edited: true };
         history.push({ at: ev.at, by: ev.by, action: 'edit', roundId: ev.id, reason });
+        undone = null;
         break;
       }
     }
@@ -98,7 +112,7 @@ export function replay<Setup, Input>(
   for (const r of rounds) {
     for (const id of players) {
       const next = (totals[id] ?? 0) + (r.delta[id] ?? 0);
-      // Totals feed settlement, which only accepts |x| <= MAX_AMOUNT, so reject the round that crosses it.
+      // Every amount in the app stays within MAX_AMOUNT, so reject the round that would push a total past it.
       if (!Number.isSafeInteger(next) || Math.abs(next) > MAX_AMOUNT) {
         throw new LedgerError(`a running total would exceed ${MAX_AMOUNT.toLocaleString('en-US')}`);
       }

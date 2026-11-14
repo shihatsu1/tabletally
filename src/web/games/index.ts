@@ -4,44 +4,56 @@ import { analyze as analyzePusoy, type PusoyInput, type PusoySetup } from '../..
 import { deuceMultiplier, type PusoyDosInput, type PusoyDosSetup, type Tier } from '../../games/pusoy-dos';
 import { analyze as analyzePoker, type PokerInput, type PokerSetup } from '../../games/poker';
 import type { TongItsInput, TongItsSetup } from '../../games/tong-its';
-import PokerEntry from './poker/Entry.svelte';
+import type { PkView } from '../../games/poker/engine';
+import type { PsView } from '../../games/pusoy/engine';
 import PokerPlay from './poker/Play.svelte';
 import PokerSetupUi from './poker/Setup.svelte';
-import PusoyEntry from './pusoy/Entry.svelte';
 import PusoyPlay from './pusoy/Play.svelte';
-import DosHand from './pusoy-dos/HandHelper.svelte';
 import DosPlay from './pusoy-dos/Play.svelte';
 import PusoySetupUi from './pusoy/Setup.svelte';
-import Entry from './pusoy-dos/Entry.svelte';
 import Setup from './pusoy-dos/Setup.svelte';
-import TongEntry from './tong-its/Entry.svelte';
-import TongHand from './tong-its/HandHelper.svelte';
 import TongPlay from './tong-its/Play.svelte';
 import TongStatus from './tong-its/Status.svelte';
 import TongSetup from './tong-its/Setup.svelte';
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
 
+/** What the seat strip shows for one player while a hand is on. Every field is optional. */
+export interface SeatInfo {
+  /** Cards still held (drawn as small card backs). */
+  cards?: number;
+  /** One short line of live state, for example a poker stack. */
+  text?: string;
+  /** Out of this hand (poker fold). */
+  out?: boolean;
+  /** Holds the dealer button. */
+  dealer?: boolean;
+}
+
+/** Card counts are public in the shedding and rummy games. */
+const countSeat = (view: unknown, id: string): SeatInfo | null => {
+  const n = (view as { counts?: Record<string, number> } | null)?.counts?.[id];
+  return n === undefined ? null : { cards: n };
+};
+
 /**
  * Everything the browser needs per game. The registry is typed loosely on purpose: each game's
  * components validate their own input and setup, and the server re-validates everything.
  */
 export interface GameUi {
-  /** Result-entry screen. Props: setup, players, rounds, initial?, submitLabel?, onsave. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Entry: Component<any>;
   /** Live game status shown under the standings for everyone (for example the Tong-its pot). Props: room. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Status?: Component<any>;
-  /** Digital play: the screen for a hand being played in the app. Props: view, nameOf, onmove. */
+  /** The screen for a hand being played. Props: view, nameOf, onmove. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Play?: Component<any>;
-  /** Private hand helper shown on each player's own phone, if the game has one. Props: code, setup. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  HandHelper?: Component<any>;
+  Play: Component<any>;
   /** Host options screen. Props: setup, playerCount, onchange. */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   Setup: Component<any>;
+  /** The stake the host sets when dealing: its label key and a starting value. Absent for stakeless games (poker). */
+  stake?: { label: string; start: number };
+  /** Live seat details for the seat strip, from this player's view of the hand. */
+  seat?(view: unknown, playerId: string, t: T): SeatInfo | null;
   /** One-line summary of a saved round for the history list. */
   describe(round: PublicRound, setup: unknown, nameOf: (id: string) => string, t: T): string;
   /** Who won the round, for celebrations. Null if there is no single winner. */
@@ -65,10 +77,10 @@ function tierText(tiers: Tier[], hand: number): string {
 
 export const gameUis: Readonly<Record<string, GameUi>> = {
   'pusoy-dos': {
-    Entry,
     Setup,
-    HandHelper: DosHand,
     Play: DosPlay,
+    stake: { label: 'play.stake', start: 50 },
+    seat: countSeat,
     describe(round, setupRaw, nameOf, t) {
       const setup = setupRaw as PusoyDosSetup;
       const input = round.input as PusoyDosInput;
@@ -117,10 +129,10 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
     },
   },
   'tong-its': {
-    Entry: TongEntry,
     Setup: TongSetup,
-    HandHelper: TongHand,
     Play: TongPlay,
+    stake: { label: 'tong.stake', start: 10 },
+    seat: countSeat,
     Status: TongStatus,
     describe(round, _setup, nameOf, t) {
       const i = round.input as TongItsInput;
@@ -162,9 +174,14 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
     },
   },
   pusoy: {
-    Entry: PusoyEntry,
     Setup: PusoySetupUi,
     Play: PusoyPlay,
+    stake: { label: 'play.stake', start: 50 },
+    seat(viewRaw, id, t) {
+      const view = viewRaw as PsView | null;
+      if (!view || view.done) return null;
+      return { text: t(view.waiting.includes(id) ? 'pusoy.play.setting' : 'pusoy.play.ready') };
+    },
     describe(round, setupRaw, nameOf, t) {
       const setup = setupRaw as PusoySetup;
       const input = round.input as PusoyInput;
@@ -201,7 +218,6 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
       const s = setupRaw as PusoySetup;
       const lines = [t('rules.pusoy.intro'), t('rules.pusoy.rows')];
       lines.push(t('rules.pusoy.system', { maj: s.majorityBonus, scoop: s.scoopBonus }));
-      lines.push(s.foul === 'scoop' ? t('rules.pusoy.foul.scoop') : t('rules.pusoy.foul.flat', { n: s.foulFlat }));
       if (s.royalties) lines.push(t(s.royaltyMode === 'all' ? 'rules.pusoy.royalties.all' : 'rules.pusoy.royalties.onwin'));
       if (s.naturals) lines.push(t('rules.pusoy.naturals'));
       lines.push(t('rules.vary'));
@@ -209,8 +225,13 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
     },
   },
   poker: {
-    Entry: PokerEntry,
     Play: PokerPlay,
+    seat(viewRaw, id, t) {
+      const ps = (viewRaw as PkView | null)?.seat?.[id];
+      if (!ps) return null;
+      const state = ps.folded ? t('poker.folded') : ps.allIn ? t('poker.allin') : ps.bet > 0 ? t('poker.seatBet', { n: ps.bet }) : '';
+      return { text: t('poker.stack', { n: ps.stack }) + (state ? ` · ${state}` : ''), out: ps.folded, dealer: ps.dealer };
+    },
     Setup: PokerSetupUi,
     describe(round, _setup, nameOf, t) {
       const input = round.input as PokerInput;

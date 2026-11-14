@@ -1,4 +1,3 @@
-import { agreePause, currentPlayer, declinePause, normalizeClock, resumeClock, startClock, turnDone, type Clock, type ClockResult } from '../core/clock';
 import { LedgerError, replay, type LedgerEvent } from '../core/ledger';
 import { BOT_LEVELS, type BotLevel } from '../core/play';
 import { mixSeed } from '../core/rng';
@@ -7,6 +6,7 @@ import { getEngine } from '../games/engines';
 import {
   cleanName,
   type ClientMessage,
+  type LobbyInfo,
   type PlayEnvelope,
   type RoomView,
 } from '../shared/protocol';
@@ -22,8 +22,7 @@ export const MAX_EVENTS = 1500;
 export interface PlayerRec {
   id: string;
   name: string;
-  manual: boolean;
-  /** SHA-256 hex of the device token. Null for players the host added by hand and for computers. */
+  /** SHA-256 hex of the device token. Null for computers. */
   tokenHash: string | null;
   /** Set for computer players. */
   bot?: BotLevel;
@@ -63,10 +62,6 @@ export interface RoomState {
   createdAt: number;
   lastActivityAt: number;
   keepDays: 1 | 30;
-  /** Turn timer. Absent in rooms saved before the timer existed, which means none. */
-  clock?: Clock | null;
-  /** Absent in rooms saved before digital play, which means 'score'. */
-  mode?: 'score' | 'play';
   play?: PlayRec | null;
 }
 
@@ -90,9 +85,7 @@ export interface CreateParams {
   hostName: unknown;
   /** Optional host options. Defaults to the game's defaults when absent. */
   setup?: unknown;
-  /** 'play' = the app deals (needs a game engine). Defaults to 'score'. */
-  mode?: unknown;
-  /** Levels of computer players to seat now (digital play only), at most playerCount - 1. */
+  /** Levels of computer players to seat now, at most playerCount - 1. */
   bots?: unknown;
 }
 
@@ -126,23 +119,21 @@ export function createRoom(
     setup = p.setup;
   }
 
-  const mode = p.mode === undefined ? 'score' : p.mode;
-  if (mode !== 'score' && mode !== 'play') return fail('bad_mode', 'Unknown way to play.');
-  const engine = mode === 'play' ? getEngine(game.id) : undefined;
-  if (mode === 'play' && !engine) return fail('no_engine', 'This game cannot be played in the app yet.');
-  if (engine?.playerCounts && !engine.playerCounts.includes(playerCount)) {
+  // Every table is played in the app: the server deals and runs the turns.
+  const engine = getEngine(game.id);
+  if (!engine) return fail('no_engine', 'This game cannot be played in the app yet.');
+  if (engine.playerCounts && !engine.playerCounts.includes(playerCount)) {
     return fail('bad_player_count', `Playing this game in the app supports ${engine.playerCounts.join(', ')} players.`);
   }
   const wanted = p.bots === undefined ? [] : p.bots;
   if (!Array.isArray(wanted) || wanted.some((l) => !(BOT_LEVELS as readonly unknown[]).includes(l))) return fail('bad_bots', 'Pick Easy, Normal or Hard for each computer.');
-  if (wanted.length > 0 && mode !== 'play') return fail('bad_bots', 'Computer players need play in the app.');
   if (wanted.length > playerCount - 1) return fail('bad_bots', 'There is no room for that many computers.');
 
-  const players: PlayerRec[] = [{ id: 'p1', name: hostName, manual: false, tokenHash: hostHash }];
+  const players: PlayerRec[] = [{ id: 'p1', name: hostName, tokenHash: hostHash }];
   (wanted as BotLevel[]).forEach((level, i) => {
     let name = `${BOT_NAME} ${i + 1}`;
     for (let k = i + 1; players.some((pl) => pl.name.toLowerCase() === name.toLowerCase()); k++) name = `${BOT_NAME} ${k + 1}`;
-    players.push({ id: `p${i + 2}`, name, manual: false, tokenHash: null, bot: level });
+    players.push({ id: `p${i + 2}`, name, tokenHash: null, bot: level });
   });
 
   return {
@@ -162,8 +153,6 @@ export function createRoom(
       createdAt: now,
       lastActivityAt: now,
       keepDays: 1,
-      clock: null,
-      mode,
       play: null,
     },
   };
@@ -203,16 +192,23 @@ export function joinRoom(
   const name = cleanName(rawName);
   if (!name) return fail('bad_name', 'Your name must be 1 to 24 characters.');
   if (s.players.length >= s.playerCount) return fail('room_full', 'This table is full.');
-  if (s.events.length > 0) return fail('game_started', 'Rounds have started, so no one new can sit down.');
+  if (s.events.length > 0 || s.play) return fail('game_started', 'Hands have started, so no one new can sit down.');
   if (nameTaken(s, name)) return fail('name_taken', 'Someone at this table already has that name.');
   const id = `p${s.nextPlayer}`;
   const state: RoomState = {
     ...s,
-    players: [...s.players, { id, name, manual: false, tokenHash }],
+    players: [...s.players, { id, name, tokenHash }],
     nextPlayer: s.nextPlayer + 1,
     lastActivityAt: now,
   };
   return { ok: true, value: { state, actor: { playerId: id, isHost: tokenHash === s.hostHash } } };
+}
+
+/** The table as a phone that is not seated may see it. No names of players, no scores. */
+export function lobbyInfo(s: RoomState): LobbyInfo {
+  const started = s.events.length > 0 || s.play != null;
+  const status = started ? 'started' : s.players.length >= s.playerCount ? 'full' : 'open';
+  return { name: s.name, gameId: s.gameId, seated: s.players.length, playerCount: s.playerCount, status };
 }
 
 /** Replay the event log; returns the ledger state or a human-readable error. */
@@ -222,7 +218,7 @@ function replayState(s: RoomState, events: LedgerEvent<unknown>[]) {
   return replay(game, s.setup, s.players.map((p) => p.id), events);
 }
 
-/** Apply a host action. Players cannot change the ledger; only the host can. */
+/** Apply a message from a phone. Only the game itself adds hands; the host can void or restore the last one. */
 export function applyMessage(
   s: RoomState,
   actor: Actor,
@@ -234,7 +230,7 @@ export function applyMessage(
   const hostOnly = (): Result<never> | null =>
     actor.isHost ? null : fail('not_host', 'Only the host can do that.');
   const by = actor.playerId ?? 'host';
-  const changesLedger = msg.t === 'addRound' || msg.t === 'undo' || msg.t === 'edit';
+  const changesLedger = msg.t === 'undo' || msg.t === 'restore';
   if (changesLedger && s.events.length >= MAX_EVENTS) {
     return fail('too_many', 'This room has too many entries. Start a new table.');
   }
@@ -250,55 +246,26 @@ export function applyMessage(
   };
 
   switch (msg.t) {
-    case 'addRound': {
-      const denied = hostOnly();
-      if (denied) return denied;
-      if (s.mode === 'play') return fail('play_mode', 'In this table the app records each hand itself.');
-      if (s.players.length !== s.playerCount) {
-        return fail('table_not_full', `Waiting for ${s.playerCount - s.players.length} more player(s).`);
-      }
-      const ev: LedgerEvent<unknown> = { type: 'round.add', id: `r${s.nextRound}`, at: now, by, input: msg.input };
-      return withEvents([...s.events, ev], { nextRound: s.nextRound + 1 });
-    }
     case 'undo': {
       const denied = hostOnly();
       if (denied) return denied;
-      if (isLinked(s)) return fail('linked_hands', 'In this game each hand starts from the last hand\'s chips, so past hands cannot be undone or edited.');
+      if (isLinked(s)) return fail('linked_hands', 'In this game each hand starts from the last hand\'s chips, so a past hand cannot be voided.');
+      if (!playIsOver(s)) return fail('hand_running', 'Wait for the hand being played to end.');
       return withEvents([...s.events, { type: 'round.undo', at: now, by }]);
     }
-    case 'edit': {
+    case 'restore': {
       const denied = hostOnly();
       if (denied) return denied;
-      if (isLinked(s)) return fail('linked_hands', 'In this game each hand starts from the last hand\'s chips, so past hands cannot be undone or edited.');
-      const reason = msg.reason.replace(/\s+/g, ' ').trim();
-      if (reason.length < 1 || reason.length > 140) return fail('bad_reason', 'Give a reason of 1 to 140 characters.');
-      return withEvents([...s.events, { type: 'round.edit', id: msg.id, at: now, by, reason, input: msg.input }]);
-    }
-    case 'addPlayer': {
-      const denied = hostOnly();
-      if (denied) return denied;
-      if (s.mode === 'play') return fail('play_mode', 'In this table everyone plays on their own phone. Add a computer instead.');
-      const name = cleanName(msg.name);
-      if (!name) return fail('bad_name', 'Name must be 1 to 24 characters.');
-      if (s.players.length >= s.playerCount) return fail('room_full', 'This table is full.');
-      if (s.events.length > 0) return fail('game_started', 'Rounds have started.');
-      if (nameTaken(s, name)) return fail('name_taken', 'Someone at this table already has that name.');
-      return {
-        ok: true,
-        value: {
-          ...s,
-          players: [...s.players, { id: `p${s.nextPlayer}`, name, manual: true, tokenHash: null }],
-          nextPlayer: s.nextPlayer + 1,
-          lastActivityAt: now,
-        },
-      };
+      if (isLinked(s)) return fail('linked_hands', 'In this game each hand starts from the last hand\'s chips, so a past hand cannot be voided.');
+      if (!playIsOver(s)) return fail('hand_running', 'Wait for the hand being played to end.');
+      if (s.events.at(-1)?.type !== 'round.undo') return fail('nothing_to_restore', 'Only the hand voided last can be brought back, before the next hand is recorded.');
+      return withEvents([...s.events, { type: 'round.restore', at: now, by }]);
     }
     case 'rename':
       return rename(s, actor, msg.name, msg.playerId, now);
     case 'addBot': {
       const denied = hostOnly();
       if (denied) return denied;
-      if (s.mode !== 'play') return fail('play_mode', 'Computer players need play in the app.');
       if (s.players.length >= s.playerCount) return fail('room_full', 'This table is full.');
       if (s.events.length > 0 || s.play) return fail('game_started', 'Hands have started.');
       const n = s.players.filter((pl) => pl.bot).length + 1;
@@ -308,7 +275,7 @@ export function applyMessage(
         ok: true,
         value: {
           ...s,
-          players: [...s.players, { id: `p${s.nextPlayer}`, name, manual: false, tokenHash: null, bot: msg.level }],
+          players: [...s.players, { id: `p${s.nextPlayer}`, name, tokenHash: null, bot: msg.level }],
           nextPlayer: s.nextPlayer + 1,
           lastActivityAt: now,
         },
@@ -344,42 +311,6 @@ export function applyMessage(
       if (problems.length > 0) return fail('bad_setup', problems.join('; '));
       return { ok: true, value: { ...s, setup: msg.setup, lastActivityAt: now } };
     }
-    case 'clock': {
-      const need = actor.playerId !== null;
-      const clock = s.clock ?? null;
-      const save = (r: ClockResult): Result<RoomState> =>
-        r.ok ? { ok: true, value: { ...s, clock: r.clock, lastActivityAt: now } } : fail(r.code, r.message);
-
-      if (msg.op === 'start') {
-        const denied = hostOnly();
-        if (denied) return denied;
-        return save(startClock(s.players.map((p) => p.id), msg.seconds, msg.first, now));
-      }
-      if (msg.op === 'stop') {
-        const denied = hostOnly();
-        if (denied) return denied;
-        return { ok: true, value: { ...s, clock: null, lastActivityAt: now } };
-      }
-      if (!clock) return fail('no_clock', 'There is no turn timer running.');
-      if (!need) return fail('not_seated', 'Sit down to use the timer.');
-      // Everyone with a phone must agree to a pause. Players the host added by hand cannot, and the
-      // host is at the table with them, so they are not asked.
-      const required = s.players.filter((p) => !p.manual && !p.bot).map((p) => p.id);
-      switch (msg.op) {
-        case 'done': {
-          const turnOf = currentPlayer(clock, now);
-          if (!actor.isHost && actor.playerId !== turnOf) return fail('not_your_turn', 'It is not your turn.');
-          return save(turnDone(clock, now));
-        }
-        case 'pause':
-          return save(agreePause(clock, actor.playerId as string, required, now));
-        case 'decline':
-          return save(declinePause(clock, now));
-        case 'resume':
-          return save(resumeClock(normalizeClock(clock, now), now));
-      }
-      return fail('bad_message', 'Unsupported message.');
-    }
     case 'keep': {
       const denied = hostOnly();
       if (denied) return denied;
@@ -391,20 +322,18 @@ export function applyMessage(
 }
 
 /** Everything a phone needs to draw the table. Never includes token hashes. */
-export function buildView(s: RoomState, connected: ReadonlySet<string>, now: number = s.lastActivityAt): RoomView {
+export function buildView(s: RoomState, connected: ReadonlySet<string>): RoomView {
   const ledger = replayState(s, s.events);
   return {
     code: s.code,
     name: s.name,
     gameId: s.gameId,
-    mode: s.mode ?? 'score',
     setup: s.setup,
     playerCount: s.playerCount,
     unit: s.unit,
     players: s.players.map((p) => ({
       id: p.id,
       name: p.name,
-      manual: p.manual,
       ...(p.bot ? { bot: p.bot } : {}),
       connected: p.bot ? true : connected.has(p.id),
     })),
@@ -413,7 +342,6 @@ export function buildView(s: RoomState, connected: ReadonlySet<string>, now: num
     history: ledger.history,
     expiresAt: expiresAt(s),
     keepDays: s.keepDays,
-    clock: s.clock ? normalizeClock(s.clock, now) : null,
   };
 }
 
@@ -426,9 +354,9 @@ function rename(s: RoomState, actor: Actor, rawName: string, target: string | un
   const id = target ?? actor.playerId;
   const who = s.players.find((pl) => pl.id === id);
   if (!id || !who) return fail('no_such_player', 'That player is not at this table.');
-  // You can rename yourself. The host can also rename people it seated by hand, and computers.
+  // You can rename yourself. The host can also rename computers.
   const mine = actor.playerId === id;
-  const hostMay = actor.isHost && (who.manual || who.bot !== undefined);
+  const hostMay = actor.isHost && who.bot !== undefined;
   if (!mine && !hostMay) return fail('not_allowed', 'You can only change your own name.');
   if (s.players.some((pl) => pl.id !== id && pl.name.toLowerCase() === name.toLowerCase())) {
     return fail('name_taken', 'Someone at this table already has that name.');
@@ -444,7 +372,7 @@ const BOT_MIN_MS = 800;
 const BOT_SPREAD_MS = 700;
 
 /** True for a digital table whose hands depend on each other (poker stacks carry over). */
-export const isLinked = (s: RoomState): boolean => s.mode === 'play' && getEngine(s.gameId)?.linkedHands === true;
+export const isLinked = (s: RoomState): boolean => getEngine(s.gameId)?.linkedHands === true;
 
 export const playIsOver = (s: RoomState): boolean => {
   const engine = getEngine(s.gameId);
@@ -497,7 +425,7 @@ export function wakeAt(s: RoomState): number {
 
 function deal(s: RoomState, stake: number, turnSeconds: number, now: number, seed: number): Result<RoomState> {
   const engine = getEngine(s.gameId);
-  if (s.mode !== 'play' || !engine) return fail('play_mode', 'This table is for real cards.');
+  if (!engine) return fail('no_engine', 'This game cannot be played in the app.');
   if (s.players.length !== s.playerCount) return fail('table_not_full', `Waiting for ${s.playerCount - s.players.length} more player(s).`);
   if (!playIsOver(s)) return fail('hand_running', 'A hand is already being played.');
   if (s.events.length >= MAX_EVENTS) return fail('too_many', 'This room has too many entries. Start a new table.');
@@ -525,7 +453,7 @@ function deal(s: RoomState, stake: number, turnSeconds: number, now: number, see
 }
 
 /**
- * If the hand in `state` is over, add it to the ledger like a round typed in by hand (so totals, history and undo work).
+ * If the hand in `state` is over, add it to the ledger as a round (so totals, history and void work).
  * `before` is the room as it was before this change (its events are what the ledger already holds).
  */
 function recordFinishedHand(before: RoomState, state: RoomState, now: number): RoomState {
@@ -556,7 +484,7 @@ function recordFinishedHand(before: RoomState, state: RoomState, now: number): R
 /** Apply a move for `pid` (already known to be at the table). Scores the hand when it ends. */
 function playMove(s: RoomState, pid: string, move: unknown, now: number): Result<RoomState> {
   const engine = getEngine(s.gameId);
-  if (s.mode !== 'play' || !engine || !s.play) return fail('no_hand', 'There is no hand being played.');
+  if (!engine || !s.play) return fail('no_hand', 'There is no hand being played.');
   let problems: string[];
   try {
     problems = engine.validate(s.play.state, pid, move);
@@ -623,7 +551,7 @@ export function advancePlay(s: RoomState, now: number, timeOnly = false): RoomSt
 /** What one viewer may see of the hand in progress. */
 export function playEnvelope(s: RoomState, playerId: string | null): PlayEnvelope | null {
   const engine = getEngine(s.gameId);
-  if (s.mode !== 'play' || !engine || !s.play) return null;
+  if (!engine || !s.play) return null;
   const who = engine.toAct(s.play.state);
   return {
     view: engine.viewFor(s.play.state, playerId),

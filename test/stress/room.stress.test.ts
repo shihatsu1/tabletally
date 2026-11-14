@@ -39,13 +39,12 @@ function validRound(gameId: string, players: string[], r: () => number): unknown
 function randomRoom(r: () => number): RoomState | null {
   const gameId = pick(Object.keys(games), r);
   const game = getGame(gameId)!;
-  const mode = r() % 3 === 0 ? 'score' : 'play';
-  const engine = mode === 'play' ? getEngine(gameId) : undefined;
+  const engine = getEngine(gameId);
   const counts = (engine?.playerCounts ?? game.playerCounts) as readonly number[];
   const playerCount = pick(counts, r);
-  const bots = mode === 'play' ? range(r() % playerCount).map(() => pick(BOT_LEVELS, r)) : [];
+  const bots = range(r() % playerCount).map(() => pick(BOT_LEVELS, r));
   const out = createRoom(
-    { name: pick(['Night', ' ', 'x'.repeat(41), 'Game night'], r), gameId, playerCount, unit: pick(['pts', 'PHP', '', 'x'.repeat(13), '  USD  '], r), hostName: pick(NAMES, r), mode, bots, ...(r() % 4 === 0 ? { setup: garbage(r) } : {}) },
+    { name: pick(['Night', ' ', 'x'.repeat(41), 'Game night'], r), gameId, playerCount, unit: pick(['pts', 'PHP', '', 'x'.repeat(13), '  USD  '], r), hostName: pick(NAMES, r), bots, ...(r() % 4 === 0 ? { setup: garbage(r) } : {}) },
     'ABCDE', HOST, 1_700_000_000_000,
   );
   return out.ok ? out.value : null;
@@ -55,7 +54,7 @@ describe('Room and protocol stress', () => {
   it('parseClientMessage and cleanName survive random garbage', () => {
     const f = new Failures();
     const r = seeded(808);
-    const TYPES = ['join', 'addRound', 'undo', 'edit', 'addPlayer', 'rename', 'addBot', 'removeBot', 'deal', 'move', 'setup', 'keep', 'clock', 'react', 'ping', 'nope', '__proto__'];
+    const TYPES = ['join', 'addRound', 'undo', 'restore', 'edit', 'addPlayer', 'rename', 'addBot', 'removeBot', 'deal', 'move', 'setup', 'keep', 'clock', 'react', 'ping', 'nope', '__proto__'];
     const rnd = (depth = 0): unknown => {
       const k = r() % 9;
       if (depth > 3 || k < 4) return pick([null, true, false, 0, -1, 1e308, NaN, 'x', '', 'p1', NAMES[r() % NAMES.length], 'a'.repeat(70), 5, 30, 1, 1.5], r);
@@ -98,7 +97,7 @@ describe('Room and protocol stress', () => {
       for (let tries = 0; tries < 400 && !s0; tries++) s0 = randomRoom(r);
       if (!s0) { f.add(`seed=${seed}: could not create any room in 400 tries`); continue; }
       let s: RoomState = s0;
-      const ctx0 = `seed=${seed} ${s.gameId}/${s.mode}/${s.playerCount}p`;
+      const ctx0 = `seed=${seed} ${s.gameId}/${s.playerCount}p`;
       let now = 1_700_000_000_000;
       const knownIds = new Set(s.players.map((p) => p.id));
       const joined = new Set<string>();
@@ -159,6 +158,7 @@ describe('Room and protocol stress', () => {
             { t: 'undo' },
             { t: 'edit', id: pick(['r1', 'r2', 'r99', 'x', ''], r), reason: pick(['typo', '', 'x'.repeat(141), 'ok'], r), input: r() % 2 ? validRound(s.gameId, ids, r) : garbage(r) },
             { t: 'addPlayer', name: pick(NAMES, r) },
+            { t: 'restore' },
             { t: 'rename', name: pick(NAMES, r), ...(r() % 2 ? { playerId: pick([...ids, 'p99', 'x'], r) } : {}) },
             { t: 'addBot', level: pick([...BOT_LEVELS, 'god'], r) },
             { t: 'removeBot', playerId: pick([...ids, 'p99'], r) },
@@ -180,7 +180,7 @@ describe('Room and protocol stress', () => {
               acc[msg.t] = (acc[msg.t] ?? 0) + 1;
               s = res.value;
               // ---- permissions: things only the host may do
-              const hostOnly = ['addRound', 'undo', 'edit', 'addPlayer', 'addBot', 'removeBot', 'deal', 'setup', 'keep'];
+              const hostOnly = ['undo', 'restore', 'addBot', 'removeBot', 'deal', 'setup', 'keep'];
               if (hostOnly.includes(msg.t) && !actor.isHost) f.add(`${ctx}: a non-host got ${msg.t} accepted`);
               if (msg.t === 'move' && !actor.playerId) f.add(`${ctx}: an unseated device made a move`);
               if (msg.t === 'rename') {
@@ -188,12 +188,14 @@ describe('Room and protocol stress', () => {
                 const was = before.players.find((p) => p.id === target);
                 const mine = actor.playerId === target;
                 if (!was) f.add(`${ctx}: renamed a player that does not exist`);
-                else if (!mine && !(actor.isHost && (was.manual || was.bot))) f.add(`${ctx}: rename of someone else's name was allowed`);
+                else if (!mine && !(actor.isHost && was.bot)) f.add(`${ctx}: rename of someone else's name was allowed`);
               }
-              if (msg.t === 'addRound' && before.mode === 'play') f.add(`${ctx}: a hand was typed in at a play table`);
-              if ((msg.t === 'undo' || msg.t === 'edit') && isLinked(before)) f.add(`${ctx}: undo/edit of a linked-hands game succeeded`);
+              const t = msg.t as string;
+              if (t === 'addRound' || t === 'edit' || t === 'addPlayer' || t === 'clock') f.add(`${ctx}: a score-only message "${t}" was accepted`);
+              if ((msg.t === 'undo' || msg.t === 'restore') && isLinked(before)) f.add(`${ctx}: void/restore of a linked-hands game succeeded`);
+              if ((msg.t === 'undo' || msg.t === 'restore') && before.play && playEnded(before) === false) f.add(`${ctx}: void/restore while a hand was running`);
               if (msg.t === 'setup' && (before.events.length > 0 || (before.play && playEnded(before) === false))) f.add(`${ctx}: options changed after play started`);
-              if ((msg.t === 'addBot' || msg.t === 'addPlayer') && (before.events.length > 0 || before.play)) f.add(`${ctx}: a seat was added after play started`);
+              if (msg.t === 'addBot' && (before.events.length > 0 || before.play)) f.add(`${ctx}: a seat was added after play started`);
             }
           }
         }
@@ -208,7 +210,7 @@ describe('Room and protocol stress', () => {
         for (const p of s.players) knownIds.add(p.id);
         f.check(s.players.every((p) => p.name.length >= 1 && p.name.length <= MAX_NAME_LENGTH), () => `${ctxI}: a name has a bad length`);
         f.check(s.events.length <= MAX_EVENTS + 1, () => `${ctxI}: too many events`);
-        const view = f.guard(`${ctxI} buildView`, () => buildView(s, new Set(), now));
+        const view = f.guard(`${ctxI} buildView`, () => buildView(s, new Set()));
         if (view) {
           f.check(Math.abs(sum(view.totals)) === 0, () => `${ctxI}: totals not zero-sum ${JSON.stringify(view.totals)}`);
           const leak = hasKey(view, FORBIDDEN_KEYS);

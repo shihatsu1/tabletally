@@ -13,7 +13,6 @@
   import Banners from './Banners.svelte';
   import Reactions from './Reactions.svelte';
   import Seats from './Seats.svelte';
-  import TurnClock from './TurnClock.svelte';
 
   let { code }: { code: string } = $props();
 
@@ -30,13 +29,13 @@
     setTimeout(() => leaveRoomIfCurrent(mine), 0);
   });
 
-  // Celebrate when a new round arrives (not on first load, edits or undo).
+  // Celebrate when a hand is recorded (not on first load, a void or a restore).
   let seenRounds: number | null = null;
   $effect(() => {
     const r = session.room;
     if (!r) return;
     const n = r.rounds.length;
-    if (seenRounds !== null && n === seenRounds + 1) {
+    if (seenRounds !== null && n === seenRounds + 1 && r.history.at(-1)?.action === 'add') {
       const last = r.rounds[n - 1];
       const winner = last ? gameUis[r.gameId]?.winnerOf(last, r.setup) ?? null : null;
       celebrateRound(winner !== null && winner === session.you?.playerId);
@@ -48,51 +47,56 @@
 
   const room = $derived(session.room);
   const isHost = $derived(session.you?.isHost ?? false);
-  const seated = $derived(session.you?.playerId != null);
   const full = $derived(room ? room.players.length >= room.playerCount : false);
   const gameUi = $derived(room ? gameUis[room.gameId] : undefined);
-  const errorText = $derived(session.error ? t(`error.${session.error.code}`) !== `error.${session.error.code}` ? t(`error.${session.error.code}`) : session.error.message : '');
+  const live = $derived(session.status === 'live');
+  const errorText = $derived(session.error ? t(`error.${session.error.code}`) !== `error.${session.error.code}` ? t(`error.${session.error.code}`) : session.error.message || t('error.generic') : '');
 
   let joinName = $state(getItem('tt.name') ?? '');
-  let handName = $state('');
-  const playMode = $derived(room?.mode === 'play');
-  const handRunning = $derived(playMode && session.play !== null && session.play.toAct !== null);
+  const handRunning = $derived(session.play !== null && session.play.toAct !== null);
   const levels = ['easy', 'normal', 'hard'] as const;
-  // Hands that start from the last hand's chips (poker) cannot be undone or edited.
-  const linked = $derived(playMode && room !== null && getEngine(room.gameId)?.linkedHands === true);
+  // Hands that start from the last hand's chips (poker) cannot be voided.
+  const linked = $derived(room !== null && getEngine(room.gameId)?.linkedHands === true);
 
   const expiry = $derived(
     room ? new Date(room.expiresAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '',
   );
-
-  function addByHand() {
-    if (handName.trim() === '') return;
-    send({ t: 'addPlayer', name: handName });
-    handName = '';
-  }
 </script>
 
 <Banners />
 
 {#if session.status === 'closed'}
   <section class="card">
-    <h2>{t('room.status.closed')}</h2>
+    <h1>{t('room.status.closed')}</h1>
     <p>{t('room.expired')}</p>
-    <a href="#/"><button type="button" class="primary">{t('room.home')}</button></a>
+    <a class="btn primary" href="#/">{t('room.home')}</a>
+  </section>
+{:else if !room && session.lobby}
+  {@const lobby = session.lobby}
+  <section class="card">
+    <h1>{lobby.name}</h1>
+    <p class="dim">{t(`game.${lobby.gameId}`)} · {t('room.seats', { n: lobby.seated, total: lobby.playerCount })}</p>
+    {#if lobby.status === 'open'}
+      {@render nameForm()}
+      {#if errorText}<p class="error" role="alert">{errorText}</p>{/if}
+    {:else}
+      <p class="error" role="status">{t(lobby.status === 'full' ? 'lobby.full' : 'lobby.started')}</p>
+      <a class="btn" href="#/">{t('room.home')}</a>
+    {/if}
   </section>
 {:else if !room}
   <section class="card">
+    <h1 class="sr-only">{t('app.name')}</h1>
     <p>{t(session.status === 'reconnecting' ? 'room.status.reconnecting' : 'room.status.connecting')}</p>
     {#if errorText}<p class="error" role="alert">{errorText}</p>{/if}
-    {#if session.needsName}{@render nameForm()}{/if}
   </section>
-{:else if playMode && full}
+{:else if full}
   <PlayScreen {room} {isHost}>
     {#snippet menu()}
       {@render botsCard()}
       {@render optionsCard()}
       {@render rulesCard()}
-      <History {room} isHost={isHost && !linked} />
+      <History {room} canVoid={isHost && !linked && !handRunning} />
       {@render keepCard()}
     {/snippet}
   </PlayScreen>
@@ -102,79 +106,40 @@
       <h1>{room.name}</h1>
       <span class="dim">{t(`game.${room.gameId}`)} · {room.code}</span>
     </div>
-    <span class="status" class:live={session.status === 'live'}>{t(`room.status.${session.status === 'live' ? 'live' : 'reconnecting'}`)}</span>
+    <span class="status" class:live>{t(`room.status.${live ? 'live' : 'reconnecting'}`)}</span>
   </header>
 
   {#if errorText}<p class="error" role="alert">{errorText}</p>{/if}
 
-  {#if !seated}
-    <section class="card">
-      <h2>{t('room.joinTitle')}</h2>
-      {#if full}<p class="error">{t('error.room_full')}</p>{:else}{@render nameForm()}{/if}
-    </section>
-  {/if}
-
   <Seats {room} youId={session.you?.playerId ?? null}>
     {#snippet center()}{#if gameUi?.Status}<gameUi.Status {room} />{/if}{/snippet}
   </Seats>
-  {#if seated}<Reactions />{/if}
+  {#if session.you?.playerId}<Reactions />{/if}
 
-  {#if isHost && !full}
+  {#if isHost}
     <Invite code={room.code} seated={room.players.length} total={room.playerCount} />
-    {#if !playMode}
-      <section class="card">
-        <label for="hand-name">{t('room.addByHand')}</label>
-        <div class="row">
-          <input id="hand-name" bind:value={handName} maxlength="24" onkeydown={(e) => e.key === 'Enter' && addByHand()} />
-          <button type="button" onclick={addByHand}>{t('room.add')}</button>
-        </div>
-      </section>
-    {/if}
+  {:else}
+    <p class="dim center">{t('room.waitingFor', { n: room.playerCount - room.players.length })}</p>
   {/if}
   {@render botsCard()}
-
-  {#if !playMode}<TurnClock {room} youId={session.you?.playerId ?? null} {isHost} />{/if}
-
-  {#if seated && gameUi?.HandHelper && !playMode}
-    <gameUi.HandHelper code={room.code} setup={room.setup} />
-  {/if}
-
   {@render optionsCard()}
-
-  {#if isHost && full && gameUi}
-    <section class="card">
-      <h2>{t('entry.save')}</h2>
-      <gameUi.Entry
-        setup={room.setup}
-        rounds={room.rounds}
-        players={room.players.map((p) => ({ id: p.id, name: p.name }))}
-        onsave={(input: unknown) => send({ t: 'addRound', input })}
-      />
-    </section>
-  {:else if !isHost && seated && !playMode}
-    <p class="dim">{t('room.hostOnly')}</p>
-  {/if}
-
   {@render rulesCard()}
-
-  <History {room} {isHost} />
-
   {@render keepCard()}
 {/if}
 
 {#snippet botsCard()}
-  {#if room && isHost && playMode && room.history.length === 0 && session.play === null}
+  {#if room && isHost && room.history.length === 0 && session.play === null}
     <section class="card">
       <h2>{t('room.addBot')}</h2>
       {#if !full}
-        <div class="row" style="flex-wrap: wrap">
-          {#each levels as l (l)}<button type="button" onclick={() => send({ t: 'addBot', level: l })}>{t(`level.${l}`)}</button>{/each}
+        <div class="row wrap">
+          {#each levels as l (l)}<button type="button" disabled={!live} onclick={() => send({ t: 'addBot', level: l })}>{t(`level.${l}`)}</button>{/each}
         </div>
       {/if}
       {#each room.players.filter((p) => p.bot) as b (b.id)}
-        <div class="row" style="margin-top: 8px; align-items: center">
+        <div class="row item">
           <span class="grow">{b.name} · {t(`level.${b.bot ?? 'normal'}`)}</span>
-          <button type="button" class="ghost" onclick={() => send({ t: 'removeBot', playerId: b.id })}>{t('room.removeBot')}</button>
+          <button type="button" class="ghost" disabled={!live} onclick={() => send({ t: 'removeBot', playerId: b.id })}>{t('room.removeBot')}</button>
         </div>
       {/each}
     </section>
@@ -185,7 +150,7 @@
   {#if room && isHost && room.history.length === 0 && gameUi && !handRunning}
     <section class="card">
       <h2>{t('room.options')}</h2>
-      <p class="dim" style="margin-top: 0">{t('room.optionsNote')}</p>
+      <p class="dim note">{t('room.optionsNote')}</p>
       <gameUi.Setup setup={room.setup} playerCount={room.playerCount} onchange={(next: unknown) => send({ t: 'setup', setup: next })} />
     </section>
   {/if}
@@ -204,11 +169,11 @@
   {#if room}
     <section class="card">
       {#if isHost}
-        <button type="button" class="ghost" disabled={room.keepDays === 30} onclick={() => send({ t: 'keep', days: 30 })}>
+        <button type="button" class="ghost" disabled={room.keepDays === 30 || !live} onclick={() => send({ t: 'keep', days: 30 })}>
           {room.keepDays === 30 ? t('room.keepOn') : t('room.keep')}
         </button>
       {/if}
-      <p class="dim" style="margin-bottom: 0">{t('room.expires', { when: expiry })}</p>
+      <p class="dim note-end">{t('room.expires', { when: expiry })}</p>
     </section>
   {/if}
 {/snippet}
@@ -217,16 +182,22 @@
   <label for="join-name">{t('home.yourName')}</label>
   <div class="row">
     <input id="join-name" bind:value={joinName} maxlength="24" autocomplete="nickname" onkeydown={(e) => e.key === 'Enter' && joinName.trim() && sitDown(joinName)} />
-    <button type="button" class="primary" disabled={joinName.trim() === ''} onclick={() => sitDown(joinName)}>{t('room.joinBtn')}</button>
+    <button type="button" class="primary nowrap" disabled={joinName.trim() === '' || !live} onclick={() => sitDown(joinName)}>{t('room.joinBtn')}</button>
   </div>
 {/snippet}
 
 <style>
   .head { display: flex; align-items: flex-start; gap: 12px; margin-top: 8px; }
+  .head h1 { margin: 0; }
   .status { font-size: .8rem; padding: .25em .7em; border: 1px solid var(--line); border-radius: 999px; color: var(--text-dim); white-space: nowrap; }
   .status.live { color: var(--pos); border-color: var(--pos); }
-  a { text-decoration: none; }
-  .rules summary { cursor: pointer; font-family: var(--font-display); font-size: 1.15rem; color: var(--accent); }
+  .rules summary { cursor: pointer; font-family: var(--font-display); font-size: 1.15rem; color: var(--accent); min-height: 44px; display: flex; align-items: center; }
   .rules ul { margin: 10px 0 0; padding-left: 1.2em; }
   .rules li { margin: .35em 0; }
+  .wrap { flex-wrap: wrap; }
+  .item { margin-top: 8px; align-items: center; }
+  .note { margin-top: 0; }
+  .note-end { margin-bottom: 0; }
+  .center { text-align: center; }
+  .nowrap { white-space: nowrap; }
 </style>

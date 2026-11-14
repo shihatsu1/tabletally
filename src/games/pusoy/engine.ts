@@ -17,8 +17,8 @@ import type { BotLevel, PlayEngine } from '../../core/play';
 import { makeRng, shuffle, type Rng } from '../../core/rng';
 import type { Card } from '../cards';
 import { rankOf, suitOf } from '../cards';
-import type { NaturalKey, PlayerRoyalties, PusoyInput, PusoySetup, Ranking, RowKey } from './index';
-import { ROWS } from './index';
+import type { Detail, NaturalKey, PlayerRoyalties, PusoyInput, PusoySetup, Ranking, RowKey } from './index';
+import { analyze, ROWS } from './index';
 
 // ------------------------------------------------------------------ hand evaluation
 
@@ -172,6 +172,8 @@ export type PsMove = ({ t: 'set' } & Arrangement) | { t: 'natural'; key: Natural
 
 export interface PsState {
   rules: { royalties: boolean; naturals: boolean; natural: Record<NaturalKey, number> };
+  /** The table's scoring options, so the reveal can show how each pair of players came out. */
+  setup?: PusoySetup;
   players: string[];
   hands: Record<string, Card[]>;
   /** Naturals each player holds that this table plays (private to them until the reveal). */
@@ -198,6 +200,8 @@ export interface PsView {
   done: boolean;
   /** Only once everyone is done. */
   reveal?: Record<string, { arrangement: Arrangement | null; natural: NaturalKey | null }>;
+  /** Only once everyone is done: each player's units for the hand (before the stake) and every pair's row results. */
+  outcome?: { units: Record<string, number>; pairs: Detail['pairs'] };
 }
 
 const pendingOf = (s: PsState): string[] => s.players.filter((id) => s.sets[id] === null && s.declared[id] === null);
@@ -216,6 +220,7 @@ function start(setup: PusoySetup, players: readonly string[], seed: number): PsS
   });
   return {
     rules: { royalties: setup.royalties, naturals: setup.naturals, natural: { ...setup.natural } },
+    setup,
     players: [...players],
     hands,
     eligible,
@@ -325,6 +330,15 @@ function viewFor(s: PsState, pid: string | null): PsView {
   };
   if (s.done) {
     view.reveal = Object.fromEntries(s.players.map((id) => [id, { arrangement: s.sets[id] ?? null, natural: s.declared[id] ?? null }]));
+    const input = result(s);
+    if (s.setup && input) {
+      try {
+        const d = analyze(s.setup, s.players, { stake: 1, ...input } as PusoyInput);
+        view.outcome = { units: d.units, pairs: d.pairs };
+      } catch {
+        /* the reveal still shows every hand */
+      }
+    }
   }
   return view;
 }

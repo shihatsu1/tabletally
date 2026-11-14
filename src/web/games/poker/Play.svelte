@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PkMove, PkView } from '../../../games/poker/engine';
   import { t } from '../../lib/i18n.svelte';
+  import CardFan from '../../components/CardFan.svelte';
   import PlayingCard from '../../components/PlayingCard.svelte';
 
   interface Props {
@@ -13,8 +14,7 @@
   const KINDS = ['high', 'pair', 'twoPair', 'trips', 'straight', 'flush', 'fullHouse', 'quads', 'straightFlush'];
   // On a very short screen (a phone on its side) the cards shrink so everything still fits without scrolling.
   let winH = $state(800);
-  const board = $derived(winH < 460 ? 32 : 42);
-  const holeW = $derived(winH < 460 ? 40 : 54);
+  const board = $derived(winH < 460 ? 40 : winH < 700 ? 46 : 54);
   const me = $derived(view.you);
   const myTurn = $derived(me !== null && view.toAct === me && !view.done);
   const mySeat = $derived(me ? view.seat[me] : undefined);
@@ -55,7 +55,7 @@
       <span class="pot">{t('poker.pot')} <strong>{view.pot}</strong></span>
       <span class="dim small">{t(`poker.street.${view.street}`)} · {blindLine}</span>
     </div>
-    <div class="board" aria-label={t('poker.board')}>
+    <div class="board" role="group" aria-label={t('poker.board')}>
       {#each slots as i (i)}
         {#if view.board[i] !== undefined}<PlayingCard card={view.board[i] as number} size={board} />{:else}<span class="empty" style="width: {board}px; height: {Math.round(board * 1.4)}px"></span>{/if}
       {/each}
@@ -63,15 +63,15 @@
     {#if view.done && view.reveal && view.reveal.length > 0}
       <div class="reveal">
         {#each view.reveal as r (r.id)}
-          <span class="rv"><span class="dim small">{nameOf(r.id)}</span>{#each r.hole as c (c)}<PlayingCard card={c} size={22} />{/each}<span class="small">{t(`pusoy.play.hand.${KINDS[r.cat]}`)}</span></span>
+          <span class="rv"><span class="dim small">{nameOf(r.id)}</span>{#each r.hole as c (c)}<PlayingCard card={c} size={30} />{/each}<span class="small">{t(`pusoy.play.hand.${KINDS[r.cat]}`)}</span></span>
         {/each}
       </div>
     {/if}
   </div>
 
   {#if me !== null}
-    <div class="hole" aria-label={t('play.yourHand')}>
-      {#each view.hole as c (c)}<PlayingCard card={c} size={holeW} />{/each}
+    <div class="hole">
+      <div class="holefan" class:folded={mySeat?.folded}><CardFan cards={view.hole} spread={14} maxW={100} label={t('play.yourHand')} /></div>
       {#if mySeat?.folded}<span class="dim small">{t('poker.folded')}</span>{:else if mySeat?.allIn}<span class="small">{t('poker.allin')}</span>{/if}
     </div>
 
@@ -106,8 +106,11 @@
 </div>
 
 <style>
-  .pk { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 0 1 auto; max-height: 100%; }
-  .hole, .row, .raise { flex: none; }
+  .pk { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
+  .row, .raise { flex: none; }
+  .hole { flex: 1 1 0; min-height: 90px; max-height: 190px; }
+  .holefan { width: min(240px, 100%); height: 100%; margin: 0 auto; }
+  .holefan.folded { opacity: .5; }
   .status { flex: none; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: .85rem; line-height: 1.25; }
   .status.mine { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 14%, transparent); }
   .felt { padding: 8px; border-radius: 14px; border: 1px solid var(--line); background: radial-gradient(ellipse at 50% 40%, var(--felt-600, #1b6a50), var(--felt-700, #135340) 60%, var(--felt-900, #0b2f25)); display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -118,14 +121,14 @@
   .reveal { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; width: 100%; color: var(--cream, #f3e9d2); }
   .rv { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; max-width: 100%; }
   .rv > .dim { max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .hole { display: flex; gap: 6px; justify-content: center; align-items: center; }
+  .hole { display: flex; flex-direction: column; gap: 2px; align-items: center; }
   .small { font-size: .75rem; }
   .row { display: flex; gap: 8px; }
   .row button { flex: 1; }
   .raise { display: flex; flex-direction: column; gap: 6px; }
   .quick { display: flex; gap: 6px; }
-  .quick button { flex: 1; min-height: 36px; padding-inline: .3em; }
-  input[type='range'] { width: 100%; min-height: 28px; }
+  .quick button { flex: 1; min-height: 44px; padding-inline: .3em; }
+  input[type='range'] { width: 100%; min-height: 44px; }
   /* a phone on its side: the table and your cards on the left, the actions on the right, so nothing is pushed off screen */
   @media (max-height: 460px) and (min-width: 560px) {
     .pk { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-auto-rows: min-content; gap: 6px 12px; align-items: start; }
@@ -133,6 +136,6 @@
     .pk > .felt { grid-column: 1; grid-row: 2; }
     .pk > .hole { grid-column: 1; grid-row: 3; }
     .pk > .row, .pk > .raise { grid-column: 2; grid-row: 2 / span 2; align-self: center; }
-    .quick button { min-height: 30px; }
+    .pk > .hole { max-height: 130px; }
   }
 </style>

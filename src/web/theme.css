@@ -56,19 +56,22 @@ h1, h2, h3 { font-family: var(--font-display); margin: 0 0 .4em; line-height: 1.
 h1 { font-size: 2rem; letter-spacing: .01em; }
 h2 { font-size: 1.25rem; color: var(--accent); }
 button, input, select { font: inherit; color: inherit; }
-button {
+button, a.btn {
   background: var(--bg-raised);
+  color: var(--text);
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: .7em 1em;
   min-height: 48px;
   cursor: pointer;
 }
-button:hover { border-color: var(--brass); }
-button.primary { background: var(--brass); color: #1d1608; border-color: var(--brass); font-weight: 700; }
-button.ghost { background: transparent; }
+a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 600; }
+button:hover, a.btn:hover { border-color: var(--brass); }
+/* ghost first, so a selected chip (ghost + primary) always gets the readable primary pair */
+button.ghost, a.btn.ghost { background: transparent; }
+button.primary, a.btn.primary { background: var(--brass); color: #1d1608; border-color: var(--brass); font-weight: 700; }
 button:disabled { opacity: .5; cursor: not-allowed; }
-button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--brass-soft); outline-offset: 2px; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid var(--brass-soft); outline-offset: 2px; }
 input, select {
   width: 100%;
   background: var(--bg-deep);

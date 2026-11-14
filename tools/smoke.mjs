@@ -81,6 +81,14 @@ check('status route says an unknown room does not', statusNo.status === 404, Str
 const noRoom = await upgradeStatus('/api/rooms/ZZZZZ/ws', base);
 check('socket to a room that does not exist is refused', noRoom === 404, String(noRoom));
 
+// a phone that opens the link before giving a name sees the table, not an error
+const visitor = connect(code, token(), '');
+await visitor.open;
+visitor.join();
+const preview = await visitor.next();
+check('a new visitor gets a table preview, not an error', preview.t === 'lobby' && preview.lobby.status === 'open' && preview.lobby.seated === 1 && preview.lobby.name === 'Smoke', JSON.stringify(preview));
+visitor.ws.close();
+
 const host = connect(code, hostTok, 'A');
 await host.open;
 host.join();
@@ -98,21 +106,13 @@ for (const [name, tok] of Object.entries(toks)) {
 s = await latest(host, (m) => isState(m) && m.room.players.length === 4);
 check('all four seated, all connected', s.room.players.every((p) => p.connected));
 
-guests.B.send({ t: 'addRound', input: { winner: 'p1', stake: 50 } });
+guests.B.send({ t: 'deal', stake: 50, turnSeconds: 0 });
 const denied = await guests.B.next((m) => m.t === 'error');
-check('a guest cannot add a round', denied.code === 'not_host', JSON.stringify(denied));
+check('a guest cannot deal', denied.code === 'not_host', JSON.stringify(denied));
 
-host.send({ t: 'addRound', input: { winner: 'p3', stake: 50 } });
-s = await latest(guests.D, (m) => isState(m) && m.room.rounds.length === 1);
-check('round reaches every phone live', s.room.totals.p3 === 150 && s.room.totals.p1 === -50);
-
-host.send({ t: 'addRound', input: { winner: 'zzz', stake: 50 } });
-const inv = await host.next((m) => m.t === 'error');
-check('invalid round is refused with the game message', inv.code === 'invalid_round', JSON.stringify(inv));
-
-host.send({ t: 'undo' });
-s = await latest(guests.B, (m) => isState(m) && m.room.rounds.length === 0);
-check('undo propagates', s.room.totals.p3 === 0);
+guests.B.send({ t: 'addRound', input: { winner: 'p1', stake: 50 } });
+const typedIn = await guests.B.next((m) => m.t === 'error');
+check('there is no way to type in a result', typedIn.code === 'bad_message', JSON.stringify(typedIn));
 
 // refresh: drop B's socket, reconnect with the same token and a different name
 guests.B.ws.close();
@@ -127,56 +127,10 @@ check('rejoining keeps identity (still p2, no new seat)', s.you.playerId === 'p2
 const stranger = connect(code, token(), 'Eve');
 await stranger.open;
 stranger.join();
-const full = await stranger.next((m) => m.t === 'error');
-check('a fifth device is told the table is full', full.code === 'room_full');
+const full = await stranger.next((m) => m.t === 'lobby' || m.t === 'error');
+check('a fifth device is shown that the table is full', full.t === 'lobby' && full.lobby.status === 'full', JSON.stringify(full));
 
 const drainAll = () => [host, b2, guests.C, guests.D].forEach((c) => c.drain());
-// turn timer: starts, passes turns, and pauses only when every player agrees
-drainAll();
-host.send({ t: 'clock', op: 'start', seconds: 30, first: 0 });
-s = await latest(guests.D, (m) => isState(m) && m.room.clock !== null);
-check('host starts the turn timer and every phone sees it', s.room.clock.order.length === 4 && s.room.clock.turn === 0 && typeof s.now === 'number');
-
-drainAll();
-guests.C.send({ t: 'clock', op: 'done' });
-const notYours = await guests.C.next((m) => m.t === 'error');
-check('a player cannot pass someone else\'s turn', notYours.code === 'not_your_turn', JSON.stringify(notYours));
-
-drainAll();
-host.send({ t: 'clock', op: 'done' });
-s = await latest(b2, (m) => isState(m) && m.room.clock?.turn === 1);
-check('passing the turn moves to the next player', true);
-
-drainAll();
-b2.send({ t: 'clock', op: 'pause' });
-s = await latest(host, (m) => isState(m) && m.room.clock?.pauseReq);
-check('one request does not pause the game', s.room.clock.paused === null && s.room.clock.pauseReq.agreed.length === 1);
-drainAll();
-host.send({ t: 'clock', op: 'pause' });
-guests.C.send({ t: 'clock', op: 'pause' });
-s = await latest(host, (m) => isState(m) && m.room.clock?.pauseReq?.agreed.length === 3);
-check('the timer keeps running until the last player agrees', s.room.clock.paused === null);
-drainAll();
-guests.D.send({ t: 'clock', op: 'decline' });
-s = await latest(host, (m) => isState(m) && m.room.clock && m.room.clock.pauseReq === null);
-check('one "no" cancels the pause and the timer carries on', s.room.clock.paused === null);
-
-drainAll();
-b2.send({ t: 'clock', op: 'pause' });
-host.send({ t: 'clock', op: 'pause' });
-guests.C.send({ t: 'clock', op: 'pause' });
-guests.D.send({ t: 'clock', op: 'pause' });
-s = await latest(host, (m) => isState(m) && m.room.clock?.paused);
-check('everyone agreeing pauses the game', s.room.clock.paused.remainingMs > 0);
-drainAll();
-guests.C.send({ t: 'clock', op: 'resume' });
-s = await latest(host, (m) => isState(m) && m.room.clock && m.room.clock.paused === null);
-check('any player can resume', true);
-drainAll();
-host.send({ t: 'clock', op: 'stop' });
-s = await latest(host, (m) => isState(m) && m.room.clock === null);
-check('host stops the timer', true);
-
 // reactions: shown to everyone, throttled, and never stored
 drainAll();
 host.send({ t: 'react', emoji: '\u{1F525}' });
@@ -197,30 +151,26 @@ check('cross-origin socket is refused', crossOrigin === 403, String(crossOrigin)
   const tok = token();
   const mk = await fetch(`${base}/api/rooms`, {
     method: 'POST',
-    body: JSON.stringify({ name: 'Solo', gameId: 'pusoy-dos', playerCount: 4, unit: 'pts', hostName: 'Ann', token: tok, mode: 'play', bots: ['easy', 'normal', 'hard'] }),
+    body: JSON.stringify({ name: 'Solo', gameId: 'pusoy-dos', playerCount: 4, unit: 'pts', hostName: 'A', token: tok, bots: ['easy', 'normal', 'hard'] }),
   });
   const made = await mk.json();
   check('a solo play table is created with computers', mk.ok && /^[A-Z2-9]{5}$/.test(made.code), JSON.stringify(made));
-  const solo = connect(made.code, tok, 'Ann');
+  const solo = connect(made.code, tok, 'A');
   await solo.open;
   solo.join();
   let st = await latest(solo);
-  check('computers are seated, tagged and shown as connected', st.room.mode === 'play' && st.room.players.filter((p) => p.bot).length === 3 && st.room.players.every((p) => p.connected), JSON.stringify(st.room.players));
+  check('computers are seated, tagged and shown as connected', st.room.players.filter((p) => p.bot).length === 3 && st.room.players.every((p) => p.connected), JSON.stringify(st.room.players));
   check('no hand yet', st.play === null);
 
-  solo.send({ t: 'rename', name: 'Ate Ann' });
+  solo.send({ t: 'rename', name: 'Ate A' });
   st = await latest(solo);
-  check('a player can rename themselves live', st.room.players[0].name === 'Ate Ann' && st.room.players[0].id === 'p1');
+  check('a player can rename themselves live', st.room.players[0].name === 'Ate A' && st.room.players[0].id === 'p1');
   solo.send({ t: 'rename', name: 'Kuya Bot', playerId: 'p2' });
   st = await latest(solo);
   check('the host can rename a computer', st.room.players[1].name === 'Kuya Bot');
-  solo.send({ t: 'rename', name: 'ate ann', playerId: 'p3' });
+  solo.send({ t: 'rename', name: 'ate a', playerId: 'p3' });
   const dupe = await solo.next((m) => m.t === 'error');
   check('a duplicate name is refused', dupe.code === 'name_taken', JSON.stringify(dupe));
-
-  solo.send({ t: 'addRound', input: { winner: 'p1', stake: 5 } });
-  const typed = await solo.next((m) => m.t === 'error');
-  check('typing a round by hand is refused in play mode', typed.code === 'play_mode', JSON.stringify(typed));
 
   solo.send({ t: 'deal', stake: 50, turnSeconds: 0 });
   st = await latest(solo, (m) => m.t === 'state' && m.play);
@@ -241,6 +191,12 @@ check('cross-origin socket is refused', crossOrigin === 403, String(crossOrigin)
   check('computers play their own turns until the hand ends', moves >= 1 && st.room.rounds.length === 1, `rounds=${st.room.rounds.length}`);
   check('the finished hand was scored with zero-sum totals', Object.values(st.room.totals).reduce((a, b) => a + b, 0) === 0 && Math.max(...Object.values(st.room.totals)) === 150);
   check('once it is over every hand is revealed', st.play.view.done === true && !!st.play.view.hands);
+  solo.send({ t: 'undo' });
+  st = await latest(solo, (m) => m.t === 'state' && m.room.rounds.length === 0);
+  check('the host can void the last hand', Object.values(st.room.totals).every((v) => v === 0) && st.room.history.at(-1).action === 'undo');
+  solo.send({ t: 'restore' });
+  st = await latest(solo, (m) => m.t === 'state' && m.room.rounds.length === 1);
+  check('and bring it back', Math.max(...Object.values(st.room.totals)) === 150 && st.room.history.at(-1).action === 'restore');
   solo.send({ t: 'deal', stake: 50, turnSeconds: 0 });
   st = await latest(solo, (m) => m.t === 'state' && m.play && m.play.handNo === 2);
   check('the host can deal the next hand', st.play.handNo === 2 && st.play.view.hands === undefined);
@@ -253,11 +209,11 @@ check('cross-origin socket is refused', crossOrigin === 403, String(crossOrigin)
   const tokB = token();
   const mk = await fetch(`${base}/api/rooms`, {
     method: 'POST',
-    body: JSON.stringify({ name: 'Mixed', gameId: 'pusoy-dos', playerCount: 3, unit: 'pts', hostName: 'Ann', token: tokA, mode: 'play', bots: ['normal'] }),
+    body: JSON.stringify({ name: 'Mixed', gameId: 'pusoy-dos', playerCount: 3, unit: 'pts', hostName: 'A', token: tokA, bots: ['normal'] }),
   });
   const made = await mk.json();
-  const a = connect(made.code, tokA, 'Ann');
-  const b = connect(made.code, tokB, 'Ben');
+  const a = connect(made.code, tokA, 'A');
+  const b = connect(made.code, tokB, 'B');
   await Promise.all([a.open, b.open]);
   a.join();
   await latest(a);
@@ -285,11 +241,11 @@ check('cross-origin socket is refused', crossOrigin === 403, String(crossOrigin)
   const tok = token();
   const mk = await fetch(`${base}/api/rooms`, {
     method: 'POST',
-    body: JSON.stringify({ name: 'Tong', gameId: 'tong-its', playerCount: 3, unit: 'pts', hostName: 'Ann', token: tok, mode: 'play', bots: ['normal', 'hard'] }),
+    body: JSON.stringify({ name: 'Tong', gameId: 'tong-its', playerCount: 3, unit: 'pts', hostName: 'A', token: tok, bots: ['normal', 'hard'] }),
   });
   const made = await mk.json();
   check('a Tong-its play table is created with two computers', mk.ok, JSON.stringify(made));
-  const solo = connect(made.code, tok, 'Ann');
+  const solo = connect(made.code, tok, 'A');
   await solo.open;
   solo.join();
   let st = await latest(solo);
@@ -318,11 +274,11 @@ check('cross-origin socket is refused', crossOrigin === 403, String(crossOrigin)
   const tok = token();
   const mk = await fetch(`${base}/api/rooms`, {
     method: 'POST',
-    body: JSON.stringify({ name: 'Pusoy', gameId: 'pusoy', playerCount: 4, unit: 'pts', hostName: 'Ann', token: tok, mode: 'play', bots: ['easy', 'normal', 'hard'] }),
+    body: JSON.stringify({ name: 'Pusoy', gameId: 'pusoy', playerCount: 4, unit: 'pts', hostName: 'A', token: tok, bots: ['easy', 'normal', 'hard'] }),
   });
   const made = await mk.json();
   check('a Pusoy play table is created with three computers', mk.ok, JSON.stringify(made));
-  const solo = connect(made.code, tok, 'Ann');
+  const solo = connect(made.code, tok, 'A');
   await solo.open;
   solo.join();
   let st = await latest(solo);
@@ -338,6 +294,8 @@ check('cross-origin socket is refused', crossOrigin === 403, String(crossOrigin)
   }
   check('the hand is scored once everyone has set (the server set the human\'s rows)', st.room.rounds.length === 1 && Object.values(st.room.totals).reduce((a, b) => a + b, 0) === 0, JSON.stringify(st.room.totals));
   check('all rows are revealed at the end', st.play.view.done === true && Object.keys(st.play.view.reveal).length === 4);
+  const o = st.play.view.outcome;
+  check('the reveal says how each pair came out, and it matches the recorded hand', !!o && Object.keys(o.pairs).length === 6 && Object.entries(o.units).every(([id, u]) => u * 10 === st.room.rounds[0].delta[id]), JSON.stringify(o?.units));
   solo.ws.close();
 }
 
@@ -346,13 +304,13 @@ check('cross-origin socket is refused', crossOrigin === 403, String(crossOrigin)
   const tok = token();
   const mk = await fetch(`${base}/api/rooms`, {
     method: 'POST',
-    body: JSON.stringify({ name: 'Poker', gameId: 'poker', playerCount: 4, unit: 'pts', hostName: 'Ann', token: tok, mode: 'play', bots: ['easy', 'normal', 'hard'] }),
+    body: JSON.stringify({ name: 'Poker', gameId: 'poker', playerCount: 4, unit: 'pts', hostName: 'A', token: tok, bots: ['easy', 'normal', 'hard'] }),
   });
   const made = await mk.json();
   check('a Poker play table is created with three computers', mk.ok, JSON.stringify(made));
-  const bad8 = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ name: 'x', gameId: 'poker', playerCount: 8, unit: 'pts', hostName: 'A', token: token(), mode: 'play' }) });
+  const bad8 = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ name: 'x', gameId: 'poker', playerCount: 8, unit: 'pts', hostName: 'A', token: token() }) });
   check('poker in the app refuses more than 6 players', bad8.status === 400);
-  const solo = connect(made.code, tok, 'Ann');
+  const solo = connect(made.code, tok, 'A');
   await solo.open;
   solo.join();
   let st = await latest(solo);
@@ -376,5 +334,6 @@ check('cross-origin socket is refused', crossOrigin === 403, String(crossOrigin)
 }
 
 for (const c of [host, b2, stranger, ...Object.values(guests)]) c.ws.close();
+await new Promise((r) => setTimeout(r, 100));
 console.log(failures === 0 ? '\nAll smoke checks passed' : `\n${failures} smoke check(s) failed`);
 process.exit(failures === 0 ? 0 : 1);

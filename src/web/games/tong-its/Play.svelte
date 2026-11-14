@@ -1,5 +1,6 @@
 <script lang="ts">
   import { canSapaw, keepsDiscardMeld, meldKind, meldsContaining, type TiMove, type TiView } from '../../../games/tong-its/engine';
+  import { bestDeadwood } from '../../../games/tong-its/hand';
   import { t } from '../../lib/i18n.svelte';
   import CardFan from '../../components/CardFan.svelte';
   import PlayingCard from '../../components/PlayingCard.svelte';
@@ -51,6 +52,8 @@
   // However many melds there are, they shrink to fit; the hand and the buttons below are never squeezed out.
   const meldCards = $derived(view.melds.reduce((a, m) => a + m.size, 0));
   const meldSize = $derived(meldCards <= 10 ? 24 : meldCards <= 18 ? 18 : 14);
+  // Points the cards in hand would count if the hand ended now (the lowest after the best melds).
+  const points = $derived(view.hand.length > 0 && view.hand.length <= 13 ? bestDeadwood(view.hand) : null);
   const byOwner = $derived(view.players.map((id) => ({ id, melds: view.melds.filter((m) => m.owner === id) })).filter((o) => o.melds.length > 0));
 </script>
 
@@ -60,7 +63,7 @@
   <div class="mat">
     <div class="piles">
       <span class="pile"><span class="dim small">{t('tong.play.stock')}</span><strong>{view.stockCount}</strong></span>
-      <span class="pile"><span class="dim small">{t('tong.play.discard')}</span>{#if top !== undefined}<PlayingCard card={top} size={36} />{:else}<span class="dim">—</span>{/if}</span>
+      <span class="pile"><span class="dim small">{t('tong.play.discard')}</span>{#if top !== undefined}<PlayingCard card={top} size={44} />{:else}<span class="dim">—</span>{/if}</span>
     </div>
     <div class="melds">
       {#each byOwner as o (o.id)}
@@ -83,13 +86,14 @@
   {#if view.done && view.hands}
     <div class="reveal">
       {#each view.players.filter((id) => id !== me && (view.hands?.[id]?.length ?? 0) > 0) as id (id)}
-        <div class="rv"><span class="dim small">{nameOf(id)}</span><span class="cards">{#each view.hands[id] ?? [] as c (c)}<PlayingCard card={c} size={20} />{/each}</span></div>
+        <div class="rv"><span class="dim small who">{nameOf(id)}</span><div class="rvfan"><CardFan cards={view.hands[id] ?? []} spread={0} maxW={40} label={nameOf(id)} /></div></div>
       {/each}
     </div>
   {/if}
 
   {#if me !== null}
-    <CardFan cards={view.hand} selected={picked} onpick={toggle} label={t('play.yourHand')} />
+    {#if points !== null && !view.done}<span class="points" aria-live="polite">{t('tong.play.points', { n: points })}</span>{/if}
+    <div class="hand"><CardFan cards={view.hand} selected={picked} onpick={toggle} maxW={124} label={t('play.yourHand')} /></div>
 
     {#if myTurn && view.phase === 'draw'}
       <div class="row">
@@ -113,11 +117,13 @@
 </div>
 
 <style>
-  .ti { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 0 1 auto; max-height: 100%; }
-  .row, .status, .ti > :global(.fan) { flex: none; }
+  .ti { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
+  .row, .status { flex: none; }
+  .hand { flex: 1 1 0; min-height: 120px; max-height: 340px; }
+  .points { align-self: flex-end; font-size: .78rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--accent); }
   .status { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: .85rem; line-height: 1.25; }
   .status.mine { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 14%, transparent); }
-  .mat { padding: 6px 8px; border-radius: 12px; border: 1px dashed var(--line); display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  .mat { padding: 6px 8px; border-radius: 12px; border: 1px dashed var(--line); display: flex; flex-direction: column; gap: 6px; flex: 0 1 auto; min-height: 0; overflow: hidden; }
   .piles { display: flex; gap: 22px; justify-content: center; align-items: center; }
   .pile { display: inline-flex; gap: 6px; align-items: center; }
   .melds { display: flex; flex-direction: column; gap: 3px; }
@@ -125,11 +131,12 @@
   .name { min-width: 4.5em; max-width: 7em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .meld { display: inline-flex; gap: 0; align-items: center; }
   .meld > :global(* + *) { margin-left: -3px; }
-  .add { min-height: 0; width: 26px; height: 26px; padding: 0; border-radius: 50%; margin-left: 3px; font-weight: 800; }
+  .add { min-height: 0; width: 32px; height: 32px; padding: 0; border-radius: 50%; margin-left: 3px; font-weight: 800; }
   .small { font-size: .75rem; }
-  .cards { display: flex; gap: 2px; flex-wrap: wrap; }
   .reveal { display: flex; flex-direction: column; gap: 2px; }
-  .rv { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .rv { display: flex; align-items: center; gap: 6px; }
+  .who { width: 64px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rvfan { flex: 1; height: 58px; }
   .row { display: flex; gap: 6px; }
   .row button { flex: 1; padding-inline: .4em; font-size: .9rem; }
 </style>

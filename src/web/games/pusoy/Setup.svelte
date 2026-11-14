@@ -48,16 +48,6 @@
   {#if setup.system === 'custom'}<p class="dim note">{t('pusoy.sys.custom')}</p>{/if}
 </fieldset>
 
-<label for="foul-rule">{t('pusoy.foulRule')}</label>
-<select id="foul-rule" value={setup.foul} onchange={(e) => patch({ foul: e.currentTarget.value === 'flat' ? 'flat' : 'scoop' })}>
-  <option value="scoop">{t('pusoy.foul.scoop')}</option>
-  <option value="flat">{t('pusoy.foul.flat')}</option>
-</select>
-{#if setup.foul === 'flat'}
-  <label for="foul-flat">{t('pusoy.foulFlat')}</label>
-  <input id="foul-flat" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value={String(setup.foulFlat)} onchange={(e) => patch({ foulFlat: num(e.currentTarget, 0, 50) })} />
-{/if}
-
 <label class="check"><input type="checkbox" checked={setup.royalties} onchange={(e) => patch({ royalties: e.currentTarget.checked })} /> {t('pusoy.royalties.on')}</label>
 {#if setup.royalties}
   <div class="indent">

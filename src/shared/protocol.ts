@@ -1,4 +1,3 @@
-import type { Clock } from '../core/clock';
 import { BOT_LEVELS, type BotLevel } from '../core/play';
 
 /** Wire format shared by the Worker and the browser. Everything is plain JSON. */
@@ -15,11 +14,11 @@ export const REACTIONS = ['\u{1F44D}', '\u{1F602}', '\u{1F62E}', '\u{1F621}', '\
 
 export type ClientMessage =
   | { t: 'join'; token: string; name: string }
-  | { t: 'addRound'; input: unknown }
+  /** Host: void the last recorded hand (not while a hand is being played; never in games whose hands carry over). */
   | { t: 'undo' }
-  | { t: 'edit'; id: string; reason: string; input: unknown }
-  | { t: 'addPlayer'; name: string }
-  /** Change a name. Without `playerId` it renames you. The host may also rename players it added and computers. */
+  /** Host: bring back the hand just voided, as long as nothing was recorded since. */
+  | { t: 'restore' }
+  /** Change a name. Without `playerId` it renames you. The host may also rename computers. */
   | { t: 'rename'; name: string; playerId?: string }
   | { t: 'addBot'; level: BotLevel }
   | { t: 'removeBot'; playerId: string }
@@ -29,15 +28,12 @@ export type ClientMessage =
   | { t: 'move'; move: unknown }
   | { t: 'setup'; setup: unknown }
   | { t: 'keep'; days: 1 | 30 }
-  | { t: 'clock'; op: 'start'; seconds: number; first: number }
-  | { t: 'clock'; op: 'stop' | 'done' | 'pause' | 'decline' | 'resume' }
   | { t: 'react'; emoji: string }
   | { t: 'ping' };
 
 export interface PublicPlayer {
   id: string;
   name: string;
-  manual: boolean;
   /** Set for computer players. */
   bot?: BotLevel;
   connected: boolean;
@@ -53,7 +49,7 @@ export interface PublicRound {
 export interface PublicHistory {
   at: number;
   by: string;
-  action: 'add' | 'undo' | 'edit';
+  action: 'add' | 'undo' | 'restore' | 'edit';
   roundId: string;
   reason?: string;
 }
@@ -62,8 +58,6 @@ export interface RoomView {
   code: string;
   name: string;
   gameId: string;
-  /** 'score' = real cards on a real table; 'play' = the app deals and runs the turns. */
-  mode: 'score' | 'play';
   setup: unknown;
   playerCount: number;
   unit: string;
@@ -73,8 +67,16 @@ export interface RoomView {
   history: PublicHistory[];
   expiresAt: number;
   keepDays: 1 | 30;
-  /** Turn clock, already brought up to the server's `now`. Null when no timer is running. */
-  clock: Clock | null;
+}
+
+/** What a phone that is not seated yet may know about a table: enough to decide whether to sit down. */
+export interface LobbyInfo {
+  name: string;
+  gameId: string;
+  seated: number;
+  playerCount: number;
+  /** 'open' = a seat is free; 'full' = every seat is taken; 'started' = hands have been played, so no one new can join. */
+  status: 'open' | 'full' | 'started';
 }
 
 /** The hand in progress as ONE viewer may see it (their own cards only). Null when no hand has been dealt. */
@@ -95,6 +97,8 @@ export interface PlayEnvelope {
 export type ServerMessage =
   | { t: 'state'; room: RoomView; you: { playerId: string | null; isHost: boolean }; now: number; play: PlayEnvelope | null }
   | { t: 'error'; code: string; message: string }
+  /** Sent to a phone that is not seated (yet): the table it opened, and whether it can sit down. */
+  | { t: 'lobby'; lobby: LobbyInfo }
   | { t: 'react'; from: string; emoji: string }
   | { t: 'pong' };
 
@@ -117,16 +121,10 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
     case 'join':
       if (typeof raw.token !== 'string' || !TOKEN_PATTERN.test(raw.token)) return null;
       return typeof raw.name === 'string' ? { t: 'join', token: raw.token, name: raw.name } : null;
-    case 'addRound':
-      return isRecord(raw.input) ? { t: 'addRound', input: raw.input } : null;
     case 'undo':
       return { t: 'undo' };
-    case 'edit':
-      return typeof raw.id === 'string' && typeof raw.reason === 'string' && isRecord(raw.input)
-        ? { t: 'edit', id: raw.id, reason: raw.reason, input: raw.input }
-        : null;
-    case 'addPlayer':
-      return typeof raw.name === 'string' ? { t: 'addPlayer', name: raw.name } : null;
+    case 'restore':
+      return { t: 'restore' };
     case 'rename':
       if (typeof raw.name !== 'string') return null;
       return typeof raw.playerId === 'string' ? { t: 'rename', name: raw.name, playerId: raw.playerId } : { t: 'rename', name: raw.name };
@@ -142,15 +140,6 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
       return isRecord(raw.setup) ? { t: 'setup', setup: raw.setup } : null;
     case 'keep':
       return raw.days === 1 || raw.days === 30 ? { t: 'keep', days: raw.days } : null;
-    case 'clock':
-      if (raw.op === 'start') {
-        return finite(raw.seconds) && finite(raw.first)
-          ? { t: 'clock', op: 'start', seconds: raw.seconds, first: raw.first }
-          : null;
-      }
-      return raw.op === 'stop' || raw.op === 'done' || raw.op === 'pause' || raw.op === 'decline' || raw.op === 'resume'
-        ? { t: 'clock', op: raw.op }
-        : null;
     case 'react':
       return typeof raw.emoji === 'string' && (REACTIONS as readonly string[]).includes(raw.emoji) ? { t: 'react', emoji: raw.emoji } : null;
     case 'ping':

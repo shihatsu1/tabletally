@@ -1,5 +1,5 @@
 import type { BotLevel } from '../../core/play';
-import type { ClientMessage, PlayEnvelope, RoomView, ServerMessage } from '../../shared/protocol';
+import type { ClientMessage, LobbyInfo, PlayEnvelope, RoomView, ServerMessage } from '../../shared/protocol';
 import { deviceToken, getItem, setItem } from './storage';
 
 export type Status = 'idle' | 'connecting' | 'live' | 'reconnecting' | 'closed';
@@ -11,14 +11,14 @@ export const session = $state<{
   /** The hand in progress as this phone may see it (digital play), else null. */
   play: PlayEnvelope | null;
   you: { playerId: string | null; isHost: boolean } | null;
-  /** Set when this device is not seated yet and must give a name. */
-  needsName: boolean;
+  /** The table as seen before sitting down (name, game, free seats). Null once seated. */
+  lobby: LobbyInfo | null;
   error: { code: string; message: string } | null;
   /** Server time minus this phone's time, so the countdown agrees across phones. */
   clockOffset: number;
   /** Reactions on screen right now (they vanish after a couple of seconds). */
   reactions: { id: number; from: string; emoji: string }[];
-}>({ status: 'idle', code: null, room: null, play: null, you: null, needsName: false, error: null, clockOffset: 0, reactions: [] });
+}>({ status: 'idle', code: null, room: null, play: null, you: null, lobby: null, error: null, clockOffset: 0, reactions: [] });
 
 let ws: WebSocket | null = null;
 let retry = 0;
@@ -51,16 +51,18 @@ function connect(): void {
       session.play = msg.play;
       session.you = msg.you;
       session.clockOffset = msg.now - Date.now();
-      session.needsName = false;
+      session.lobby = null;
       session.error = null;
+      session.status = 'live';
+    } else if (msg.t === 'lobby') {
+      session.lobby = msg.lobby;
       session.status = 'live';
     } else if (msg.t === 'react') {
       const id = ++reactionId;
       session.reactions = [...session.reactions.slice(-8), { id, from: msg.from, emoji: msg.emoji }];
       setTimeout(() => (session.reactions = session.reactions.filter((r) => r.id !== id)), 2600);
     } else if (msg.t === 'error') {
-      if ((msg.code === 'bad_name' || msg.code === 'name_taken') && !session.you?.playerId) session.needsName = true;
-      else if (msg.code === 'no_room') session.status = 'closed';
+      if (msg.code === 'no_room') session.status = 'closed';
       session.error = { code: msg.code, message: msg.message };
       if (session.status !== 'closed' && !session.room) session.status = 'live';
     }
@@ -101,7 +103,7 @@ export function openRoom(code: string): void {
   leaveRoom();
   generation++;
   wanted = true;
-  Object.assign(session, { code, room: null, play: null, you: null, needsName: false, error: null });
+  Object.assign(session, { code, room: null, play: null, you: null, lobby: null, error: null });
   connect();
 }
 
@@ -112,14 +114,22 @@ export function leaveRoom(): void {
   ws?.close();
   ws = null;
   retry = 0;
-  Object.assign(session, { status: 'idle', code: null, room: null, play: null, you: null, needsName: false, error: null });
+  Object.assign(session, { status: 'idle', code: null, room: null, play: null, you: null, lobby: null, error: null });
 }
 
-export function send(msg: ClientMessage): void {
+/**
+ * Send a message to the room. Returns false, and says so on screen, when the connection is down: nothing is
+ * queued, because the table may have moved on by the time the phone reconnects. Screens that act disable
+ * themselves while the status is not 'live', so this is the last line of defence.
+ */
+export function send(msg: ClientMessage): boolean {
   if (ws?.readyState === 1) {
     session.error = null;
     ws.send(JSON.stringify(msg));
+    return true;
   }
+  session.error = { code: 'offline', message: '' };
+  return false;
 }
 
 /** Seat this device with a name (used after scanning the QR code). */
@@ -127,6 +137,7 @@ export function sitDown(name: string): void {
   setItem('tt.name', name.trim());
   session.error = null;
   if (ws?.readyState === 1) ws.send(JSON.stringify({ t: 'join', token: deviceToken(), name: name.trim() }));
+  else session.error = { code: 'offline', message: '' };
 }
 
 export async function createRoom(params: {
@@ -136,7 +147,6 @@ export async function createRoom(params: {
   unit: string;
   hostName: string;
   setup?: unknown;
-  mode?: 'score' | 'play';
   bots?: BotLevel[];
 }): Promise<{ ok: true; code: string } | { ok: false; code: string; message: string }> {
   try {

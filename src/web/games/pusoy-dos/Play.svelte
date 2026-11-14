@@ -3,7 +3,6 @@
   import { classify, playProblem } from '../../../games/pusoy-dos/engine';
   import { t } from '../../lib/i18n.svelte';
   import CardFan from '../../components/CardFan.svelte';
-  import PlayingCard from '../../components/PlayingCard.svelte';
 
   interface Props {
     view: PdView;
@@ -53,7 +52,7 @@
   <div class="mat" aria-label={t('play.table')}>
     {#if view.lead}
       <span class="by">{nameOf(view.lead.by)} · {t(`play.kind.${leadKind ?? 'single'}`)}</span>
-      <span class="cards">{#each view.lead.cards as c (c)}<PlayingCard card={c} size={40} />{/each}</span>
+      <div class="pile"><CardFan cards={view.lead.cards} spread={view.lead.cards.length > 1 ? 10 : 0} maxW={70} label={t('play.table')} /></div>
       {#if passedNames}<span class="dim small">{t('play.passed')}: {passedNames}</span>{/if}
     {:else}
       <span class="dim">{t('play.nothing')}</span>
@@ -63,13 +62,13 @@
   {#if view.done && view.hands}
     <div class="reveal">
       {#each view.players.filter((id) => id !== view.you && (view.hands?.[id]?.length ?? 0) > 0) as id (id)}
-        <div class="rv"><span class="dim small">{nameOf(id)}</span><span class="cards">{#each view.hands[id] ?? [] as c (c)}<PlayingCard card={c} size={20} />{/each}</span></div>
+        <div class="rv"><span class="dim small who">{nameOf(id)}</span><div class="rvfan"><CardFan cards={view.hands[id] ?? []} spread={0} maxW={40} label={nameOf(id)} /></div></div>
       {/each}
     </div>
   {/if}
 
   {#if view.you !== null}
-    <CardFan cards={view.hand} selected={picked} onpick={toggle} label={t('play.yourHand')} />
+    <div class="hand"><CardFan cards={view.hand} selected={picked} onpick={toggle} maxW={124} label={t('play.yourHand')} /></div>
     <div class="row">
       <button type="button" class="primary" disabled={!canPlay} onclick={play}>{t('play.playBtn')}</button>
       <button type="button" disabled={!mine || view.lead === null} onclick={pass}>{t('play.passBtn')}</button>
@@ -79,16 +78,19 @@
 </div>
 
 <style>
-  .pd { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 0 1 auto; max-height: 100%; }
+  .pd { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
   .row, .status { flex: none; }
   .status { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: .85rem; line-height: 1.25; }
   .status.mine { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 14%, transparent); }
-  .mat { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border-radius: 12px; border: 1px dashed var(--line); min-height: 96px; justify-content: center; flex: 1 1 auto; overflow: hidden; }
+  .mat { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border-radius: 12px; border: 1px dashed var(--line); min-height: 90px; justify-content: center; flex: 0 1 150px; overflow: hidden; }
+  .pile { width: 70%; flex: 1 1 auto; min-height: 60px; }
+  .hand { flex: 1 1 0; min-height: 120px; max-height: 340px; }
   .by { font-size: .8rem; color: var(--text-dim); }
-  .cards { display: flex; gap: 3px; justify-content: center; }
   .small { font-size: .75rem; }
   .reveal { display: flex; flex-direction: column; gap: 2px; }
-  .rv { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .rv { display: flex; align-items: center; gap: 6px; }
+  .who { width: 64px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rvfan { flex: 1; height: 58px; }
   .row { display: flex; gap: 8px; }
   .row button { flex: 1; }
 </style>

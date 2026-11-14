@@ -21,7 +21,7 @@ const H = { host: 'h'.repeat(64), a: 'a'.repeat(64), b: 'b'.repeat(64), x: 'f'.r
 
 function make(over: Record<string, unknown> = {}): RoomState {
   const r = createRoom(
-    { name: 'Night', gameId: 'pusoy-dos', playerCount: 4, unit: 'pts', hostName: 'Ann', mode: 'play', bots: ['easy', 'normal', 'hard'], ...over },
+    { name: 'Night', gameId: 'pusoy-dos', playerCount: 4, unit: 'pts', hostName: 'A', bots: ['easy', 'normal', 'hard'], ...over },
     'ABCDE',
     H.host,
     T0,
@@ -38,24 +38,20 @@ const ok = (r: ReturnType<typeof applyMessage>): RoomState => {
 describe('create with computers', () => {
   it('solo: one human and three computers fill the table', () => {
     const s = make();
-    expect(s.mode).toBe('play');
     expect(s.players.map((p) => [p.id, p.bot ?? null])).toEqual([['p1', null], ['p2', 'easy'], ['p3', 'normal'], ['p4', 'hard']]);
     expect(s.players.every((p) => p.bot === undefined || p.tokenHash === null)).toBe(true);
     const v = buildView(s, new Set(['p1']));
     expect(v.players.filter((p) => p.bot).every((p) => p.connected)).toBe(true);
-    expect(v.mode).toBe('play');
   });
 
   it('rejects bad requests', () => {
     const code = (over: object) => {
-      const r = createRoom({ name: 'x', gameId: 'pusoy-dos', playerCount: 4, unit: 'pts', hostName: 'A', mode: 'play', ...over }, 'ABCDE', H.host, T0);
+      const r = createRoom({ name: 'x', gameId: 'pusoy-dos', playerCount: 4, unit: 'pts', hostName: 'A', ...over }, 'ABCDE', H.host, T0);
       return r.ok ? 'ok' : r.code;
     };
     expect(code({ bots: ['easy', 'easy', 'easy', 'easy'] })).toBe('bad_bots');
     expect(code({ bots: ['genius'] })).toBe('bad_bots');
     expect(code({ bots: 'easy' })).toBe('bad_bots');
-    expect(code({ mode: 'cheat' })).toBe('bad_mode');
-    expect(code({ mode: 'score', bots: ['easy'] })).toBe('bad_bots');
     expect(code({ gameId: 'poker', playerCount: 8 })).toBe('bad_player_count'); // poker in the app seats 2 to 6
   });
 
@@ -64,7 +60,7 @@ describe('create with computers', () => {
     s = ok(applyMessage(s, host(s), { t: 'addBot', level: 'hard' }, T0));
     expect(s.players).toHaveLength(3);
     expect(s.players[2]).toMatchObject({ bot: 'hard', name: 'Computer 2' });
-    const j = joinRoom(s, H.a, 'Bea', T0);
+    const j = joinRoom(s, H.a, 'B', T0);
     expect(j.ok).toBe(true);
     const bad = applyMessage(s, actorFor(s, H.a), { t: 'addBot', level: 'easy' }, T0);
     expect(bad.ok).toBe(false);
@@ -72,19 +68,11 @@ describe('create with computers', () => {
     expect(s.players.map((p) => p.id)).toEqual(['p1', 'p2']);
     expect(applyMessage(s, host(s), { t: 'removeBot', playerId: 'p1' }, T0).ok).toBe(false);
   });
-
-  it('score-only tables refuse computers', () => {
-    const s = make({ mode: 'score', bots: [] });
-    const r = applyMessage(s, host(s), { t: 'addBot', level: 'easy' }, T0);
-    expect(r.ok).toBe(false);
-  });
 });
 
 describe('review fixes', () => {
-  it('hand-added seats are refused in play mode (nobody could play them)', () => {
-    const s = make({ bots: ['easy'] });
-    const r = applyMessage(s, host(s), { t: 'addPlayer', name: 'Ghost' }, T0);
-    expect(r.ok ? '' : r.code).toBe('play_mode');
+  it('there is no message for seating a player without a phone (nobody could play their cards)', () => {
+    expect(parseClientMessage({ t: 'addPlayer', name: 'Ghost' })).toBeNull();
   });
   it('creation never gives two players the same name', () => {
     const s = make({ hostName: 'Computer 1', bots: ['easy', 'hard'] });
@@ -140,8 +128,8 @@ describe('review fixes', () => {
 describe('renaming', () => {
   it('you can rename yourself at any time; ids and totals do not change', () => {
     let s = make();
-    s = ok(applyMessage(s, host(s), { t: 'rename', name: '  Ate   Ann ' }, T0 + 1));
-    expect(s.players[0]).toMatchObject({ id: 'p1', name: 'Ate Ann' });
+    s = ok(applyMessage(s, host(s), { t: 'rename', name: '  Ate   A ' }, T0 + 1));
+    expect(s.players[0]).toMatchObject({ id: 'p1', name: 'Ate A' });
   });
   it('rejects empty, long and duplicate names', () => {
     const s = make();
@@ -156,7 +144,7 @@ describe('renaming', () => {
     let s = make({ bots: ['easy'] });
     s = ok(applyMessage(s, host(s), { t: 'rename', name: 'Kuya Bot', playerId: 'p2' }, T0));
     expect(s.players[1]!.name).toBe('Kuya Bot');
-    const j = joinRoom(s, H.a, 'Bea', T0);
+    const j = joinRoom(s, H.a, 'B', T0);
     if (!j.ok) throw new Error('join');
     s = j.value.state;
     const guest = actorFor(s, H.a);
@@ -167,12 +155,9 @@ describe('renaming', () => {
     const real = applyMessage(s, host(s), { t: 'rename', name: 'Nope', playerId: 'p3' }, T0);
     expect(real.ok ? '' : real.code).toBe('not_allowed');
   });
-  it('works in score-only rooms and after rounds exist', () => {
-    let s = make({ mode: 'score', bots: [] });
-    s = ok(applyMessage(s, host(s), { t: 'addPlayer', name: 'B' }, T0));
-    s = ok(applyMessage(s, host(s), { t: 'addPlayer', name: 'C' }, T0));
-    s = ok(applyMessage(s, host(s), { t: 'addPlayer', name: 'D' }, T0));
-    s = ok(applyMessage(s, host(s), { t: 'addRound', input: { winner: 'p1', stake: 10 } }, T0));
+  it('works after hands have been recorded', () => {
+    let s = make();
+    s = { ...s, events: [{ type: 'round.add', id: 'r1', at: T0, by: 'game', input: { winner: 'p1', stake: 10 } }], nextRound: 2 };
     s = ok(applyMessage(s, host(s), { t: 'rename', name: 'Kuya', playerId: 'p2' }, T0));
     expect(s.players[1]!.name).toBe('Kuya');
     expect(buildView(s, new Set()).totals.p1).toBe(30);
@@ -204,13 +189,10 @@ describe('playing a hand', () => {
     const bad = make();
     expect(applyMessage(bad, host(bad), { t: 'deal', stake: 0, turnSeconds: 0 }, T0).ok).toBe(false);
     expect(applyMessage(bad, host(bad), { t: 'deal', stake: 5, turnSeconds: 9999 }, T0).ok).toBe(false);
-    const score = make({ mode: 'score', bots: [] });
-    expect(applyMessage(score, host(score), { t: 'deal', stake: 5, turnSeconds: 0 }, T0).ok).toBe(false);
   });
 
-  it('typing a round by hand is refused in play mode, and options lock while a hand runs', () => {
+  it('options lock while a hand runs', () => {
     const d = dealt();
-    expect(applyMessage(d, host(d), { t: 'addRound', input: { winner: 'p1', stake: 5 } }, T0).ok).toBe(false);
     const r = applyMessage(d, host(d), { t: 'setup', setup: d.setup }, T0);
     expect(r.ok ? '' : r.code).toBe('hand_running');
   });
@@ -312,7 +294,7 @@ describe('playing a hand', () => {
 
 describe('Tong-its in the app', () => {
   const tong = (bots: string[] = ['normal', 'hard']): RoomState => {
-    const r = createRoom({ name: 'T', gameId: 'tong-its', playerCount: 3, unit: 'pts', hostName: 'Ann', mode: 'play', bots }, 'ABCDE', H.host, T0);
+    const r = createRoom({ name: 'T', gameId: 'tong-its', playerCount: 3, unit: 'pts', hostName: 'A', bots }, 'ABCDE', H.host, T0);
     if (!r.ok) throw new Error(r.message);
     return r.value;
   };
@@ -366,7 +348,7 @@ function meldsFor(v: import('../src/games/tong-its/engine').TiView): number[] {
 describe('Pusoy in the app (everyone sets in secret, at the same time)', () => {
   type PsView = import('../src/games/pusoy/engine').PsView;
   const pusoyRoom = (bots: string[], humans = 1): RoomState => {
-    const r = createRoom({ name: 'P', gameId: 'pusoy', playerCount: 4, unit: 'pts', hostName: 'Ann', mode: 'play', bots }, 'ABCDE', H.host, T0);
+    const r = createRoom({ name: 'P', gameId: 'pusoy', playerCount: 4, unit: 'pts', hostName: 'A', bots }, 'ABCDE', H.host, T0);
     if (!r.ok) throw new Error(r.message);
     let s = r.value;
     for (let i = 1; i < humans; i++) {
@@ -459,16 +441,15 @@ describe('Pusoy in the app (everyone sets in secret, at the same time)', () => {
 describe('Poker in the app', () => {
   type PkView = import('../src/games/poker/engine').PkView;
   const pokerRoom = (playerCount = 4, bots: string[] = ['easy', 'normal', 'hard']): RoomState => {
-    const r = createRoom({ name: 'P', gameId: 'poker', playerCount, unit: 'pts', hostName: 'Ann', mode: 'play', bots }, 'ABCDE', H.host, T0);
+    const r = createRoom({ name: 'P', gameId: 'poker', playerCount, unit: 'pts', hostName: 'A', bots }, 'ABCDE', H.host, T0);
     if (!r.ok) throw new Error(`${r.code}: ${r.message}`);
     return r.value;
   };
 
-  it('allows 2 to 6 players in the app, not 7 to 10 (score-only tables still allow 10)', () => {
+  it('allows 2 to 6 players, not 7 to 10', () => {
     expect(pokerRoom(6, ['easy']).playerCount).toBe(6);
-    const big = createRoom({ name: 'P', gameId: 'poker', playerCount: 8, unit: 'pts', hostName: 'A', mode: 'play' }, 'ABCDE', H.host, T0);
+    const big = createRoom({ name: 'P', gameId: 'poker', playerCount: 8, unit: 'pts', hostName: 'A' }, 'ABCDE', H.host, T0);
     expect(big.ok ? '' : big.code).toBe('bad_player_count');
-    expect(createRoom({ name: 'P', gameId: 'poker', playerCount: 8, unit: 'pts', hostName: 'A' }, 'ABCDE', H.host, T0).ok).toBe(true);
   });
 
   it('hands are linked: stacks and the button carry over, each hand is one ledger round, totals stay zero-sum', () => {
@@ -515,7 +496,7 @@ describe('Poker in the app', () => {
 
   it('a hand that is over the moment it is dealt (blinds put everyone all in) is still recorded', () => {
     const r = createRoom(
-      { name: 'P', gameId: 'poker', playerCount: 2, unit: 'pts', hostName: 'Ann', mode: 'play', bots: ['easy'], setup: { chips: 1, moneyUnits: 1, buyIn: 1, smallBlind: 1, bigBlind: 1 } },
+      { name: 'P', gameId: 'poker', playerCount: 2, unit: 'pts', hostName: 'A', bots: ['easy'], setup: { chips: 1, moneyUnits: 1, buyIn: 1, smallBlind: 1, bigBlind: 1 } },
       'ABCDE', H.host, T0,
     );
     if (!r.ok) throw new Error(r.message);
@@ -542,7 +523,7 @@ describe('Poker in the app', () => {
     expect(d.events).toHaveLength(1);
     const undo = applyMessage(d, host(d), { t: 'undo' }, now);
     expect(undo.ok ? '' : undo.code).toBe('linked_hands');
-    const edit = applyMessage(d, host(d), { t: 'edit', id: 'r1', reason: 'oops', input: {} }, now);
-    expect(edit.ok ? '' : edit.code).toBe('linked_hands');
+    const back = applyMessage(d, host(d), { t: 'restore' }, now);
+    expect(back.ok ? '' : back.code).toBe('linked_hands');
   });
 });
