@@ -1,0 +1,16 @@
+node_modules
+tools/*.sparsebundle
+.DS_Store
+.wrangler
+dist
+tools/stress/out
+# macOS metadata (AppleDouble files appear on the exFAT drive)
+._*
+# Local maintainer notes for Claude Code and the private pre-release audit
+CLAUDE.md
+docs/audit/
+# Concept art stays on the maintainer's drive; the prompts are kept
+assets/generated/concepts/*.png
+# Playwright output
+test-results/
+playwright-report/

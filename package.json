@@ -1,0 +1,38 @@
+{
+  "name": "tabletally",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Open-source score tracker for card games among friends. Tracks scores only; never handles money.",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.worker.json && svelte-check --tsconfig ./tsconfig.web.json",
+    "dev": "vite",
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.web.json",
+    "dev:worker": "wrangler dev --port 8787",
+    "smoke": "node tools/smoke.mjs",
+    "stress": "vitest run --config vitest.stress.config.ts",
+    "stress:quick": "STRESS_N=0.05 vitest run --config vitest.stress.config.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261113.1",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^26.6.6",
+    "@types/qrcode": "^1.5.6",
+    "svelte": "^5.57.3",
+    "svelte-check": "^4.7.8",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0",
+    "wrangler": "^4.161.0"
+  },
+  "dependencies": {
+    "canvas-confetti": "^1.9.4",
+    "motion": "^14.13.0",
+    "qrcode": "^1.5.4"
+  }
+}
