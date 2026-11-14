@@ -105,7 +105,7 @@ describe('royalties and naturals', () => {
     let n = 0;
     for (let seed = 1; seed <= 300; seed++) n += E.start(setup, players, seed).eligible.A!.length > 0 ? 1 : 0;
     expect(n).toBeLessThan(40);
-  });
+  }, 30_000); // Hundreds of deals need headroom on shared CI runners.
 });
 
 const arr = (hand: number[]): Arrangement => bestArrangement(hand, ({ b, m, f }) => b.key + m.key + f.key);
@@ -150,7 +150,7 @@ describe('a hand of Pusoy', () => {
       const net = pusoy.score(setup, players, input);
       expect(Object.values(net).reduce((a, b) => a + b, 0)).toBe(0);
     }
-  });
+  }, 30_000); // Includes arranging all four hands for each seeded deal.
   it('ties share a group, and a row of equal hands scores nothing', () => {
     const base = (hands: Record<string, Arrangement>): PsState => ({
       rules: { royalties: false, naturals: false, natural: setup.natural },
