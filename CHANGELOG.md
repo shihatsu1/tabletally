@@ -15,6 +15,10 @@ All notable changes to TableTally. Dates are in Asia/Tokyo. Codes in brackets ar
 - Pusoy has a "Swap middle and bottom" button that trades the two five-card rows in one tap.
 - Pusoy: the help button moved into the button row so it no longer covers the row labels on small phones, and after a hand everyone's cards stay inside their own box (they spilled over on phones).
 
+### Tong-its hand
+- Your hand is held the way players hold it: the melds you could lay down come first, each with a gap after it, then the other cards in rank order (A, 2, 3 ... K) instead of by suit.
+- Each suggested meld has a chip above the hand; tap its ✕ to put those cards back among the others, and "Group again" to undo.
+
 ### Cards and screens
 - Real card faces from Byron Knoll's public-domain deck: number cards show their pips and J, Q, K show court art. The whole deck is one 584 KB image. Cards under 40 px wide switch to a big rank and suit so they stay readable.
 - Hands are held like real cards: an arc fan in Pusoy Dos, Tong-its and Poker, and Pusoy's top 3, middle 5 and bottom 5 overlapping from back to front. Pickable fans keep a 32 px strip of every card to tap.

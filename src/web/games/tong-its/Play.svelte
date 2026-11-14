@@ -1,6 +1,6 @@
 <script lang="ts">
   import { canSapaw, keepsDiscardMeld, meldKind, meldsContaining, type TiMove, type TiView } from '../../../games/tong-its/engine';
-  import { bestDeadwood } from '../../../games/tong-its/hand';
+  import { RANK_LABELS, bestDeadwood, organize, rankOf, suitOf } from '../../../games/tong-its/hand';
   import { t } from '../../lib/i18n.svelte';
   import CardFan from '../../components/CardFan.svelte';
   import PlayingCard from '../../components/PlayingCard.svelte';
@@ -54,6 +54,40 @@
   const meldSize = $derived(meldCards <= 10 ? 24 : meldCards <= 18 ? 18 : 14);
   // Points the cards in hand would count if the hand ended now (the lowest after the best melds).
   const points = $derived(view.hand.length > 0 && view.hand.length <= 13 ? bestDeadwood(view.hand) : null);
+  /**
+   * Your hand as a player would hold it: the melds you could lay down first, each kept together with a gap
+   * after it, then the other cards in order of rank (A, 2, 3 ... K), not by suit.
+   */
+  const byRank = (a: number, b: number): number => rankOf(a) - rankOf(b) || a - b;
+  /** Cards you put back into your hand: they are never grouped into a suggested meld again while you hold them. */
+  let loose = $state<number[]>([]);
+  $effect(() => {
+    const have = new Set(view.hand);
+    if (loose.some((c) => !have.has(c))) loose = loose.filter((c) => have.has(c));
+  });
+  const held = $derived.by(() => {
+    const plain = { cards: [...view.hand].sort(byRank), gaps: [] as number[], melds: [] as number[][] };
+    if (view.hand.length === 0 || view.hand.length > 14) return plain;
+    const free = view.hand.filter((c) => !loose.includes(c));
+    const best = free.length > 0 ? organize(free, 1)[0] : undefined;
+    if (!best) return plain;
+    const cards: number[] = [];
+    const gaps: number[] = [];
+    const melds: number[][] = [];
+    for (const m of [...best.melds].sort((x, y) => Math.min(...x.cards.map(rankOf)) - Math.min(...y.cards.map(rankOf)))) {
+      if (cards.length > 0) gaps.push(cards.length);
+      const group = [...m.cards].sort(byRank);
+      melds.push(group);
+      cards.push(...group);
+    }
+    const rest = [...best.deadwood, ...view.hand.filter((c) => loose.includes(c))].sort(byRank);
+    if (cards.length > 0 && rest.length > 0) gaps.push(cards.length);
+    cards.push(...rest);
+    return { cards, gaps, melds };
+  });
+  // \uFE0E keeps phones from drawing the suits as coloured emoji
+  const SUIT_MARK = ['\u2660\uFE0E', '\u2665\uFE0E', '\u2666\uFE0E', '\u2663\uFE0E'];
+  const short = (c: number): string => `${RANK_LABELS[rankOf(c) - 1]}${SUIT_MARK[suitOf(c)]}`;
   const byOwner = $derived(view.players.map((id) => ({ id, melds: view.melds.filter((m) => m.owner === id) })).filter((o) => o.melds.length > 0));
 </script>
 
@@ -86,14 +120,24 @@
   {#if view.done && view.hands}
     <div class="reveal">
       {#each view.players.filter((id) => id !== me && (view.hands?.[id]?.length ?? 0) > 0) as id (id)}
-        <div class="rv"><span class="dim small who">{nameOf(id)}</span><div class="rvfan"><CardFan cards={view.hands[id] ?? []} spread={0} maxW={40} label={nameOf(id)} /></div></div>
+        <div class="rv"><span class="dim small who">{nameOf(id)}</span><div class="rvfan"><CardFan cards={[...(view.hands[id] ?? [])].sort(byRank)} spread={0} maxW={40} label={nameOf(id)} /></div></div>
       {/each}
     </div>
   {/if}
 
   {#if me !== null}
-    {#if points !== null && !view.done}<span class="points" aria-live="polite">{t('tong.play.points', { n: points })}</span>{/if}
-    <div class="hand"><CardFan cards={view.hand} selected={picked} onpick={toggle} maxW={124} label={t('play.yourHand')} /></div>
+    {#if !view.done && (held.melds.length > 0 || loose.length > 0 || points !== null)}
+      <div class="helper">
+        {#each held.melds as m (m.join('.'))}
+          <button type="button" class="chip" aria-label={t('tong.play.ungroup', { cards: m.map(short).join(' ') })} onclick={() => (loose = [...loose, ...m])}>
+            {#each m as c (c)}<span class:red={suitOf(c) === 1 || suitOf(c) === 2}>{short(c)}</span>{/each}<span class="x" aria-hidden="true">✕</span>
+          </button>
+        {/each}
+        {#if loose.length > 0}<button type="button" class="chip again" onclick={() => (loose = [])}>{t('tong.play.regroup')}</button>{/if}
+        {#if points !== null}<span class="points" aria-live="polite">{t('tong.play.points', { n: points })}</span>{/if}
+      </div>
+    {/if}
+    <div class="hand"><CardFan cards={held.cards} gaps={held.gaps} selected={picked} onpick={toggle} maxW={124} label={t('play.yourHand')} /></div>
 
     {#if myTurn && view.phase === 'draw'}
       <div class="row">
@@ -120,7 +164,12 @@
   .ti { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
   .row, .status { flex: none; }
   .hand { flex: 1 1 0; min-height: 120px; max-height: 340px; }
-  .points { align-self: flex-end; font-size: .78rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--accent); }
+  .helper { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+  .chip { min-height: 32px; padding: 2px 8px; border-radius: 999px; font-size: .78rem; display: inline-flex; gap: 3px; align-items: center; background: color-mix(in srgb, var(--brass) 12%, transparent); }
+  .chip .red { color: var(--neg); }
+  .chip .x { margin-left: 3px; color: var(--text-dim); }
+  .chip.again { background: none; color: var(--accent); }
+  .points { margin-left: auto; font-size: .78rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--accent); }
   .status { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: var(--step--1); line-height: 1.3; }
   .status strong { font-family: var(--font-display); font-weight: 800; font-size: 1.05em; color: var(--accent); }
   .status.mine { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 14%, transparent); }
