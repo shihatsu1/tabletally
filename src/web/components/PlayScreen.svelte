@@ -68,7 +68,7 @@
 <div class="screen">
   <div class="base" inert={menuOpen}>
   <header>
-    <span class="title"><strong>{room.name}</strong> <small class="dim">{t(`game.${room.gameId}`)} · {room.code}</small></span>
+    <h1 class="title"><strong>{room.name}</strong> <small class="dim">{t(`game.${room.gameId}`)} · {room.code}</small></h1>
     <span class="status" class:live role="status" aria-label={t(`room.status.${live ? 'live' : 'reconnecting'}`)}>{#if !live}{t('room.status.reconnecting')}{/if}</span>
     {#if youId}<button type="button" class="ghost icon" aria-label={t('react.open')} aria-expanded={reactOpen} onclick={() => (reactOpen = !reactOpen)}><Icon name="smile" /></button>{/if}
     <button type="button" class="ghost icon" aria-label={t('room.menu')} bind:this={menuBtn} onclick={openMenu}><Icon name="menu" /></button>
@@ -135,7 +135,7 @@
   }
   .base { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
   header { display: flex; align-items: center; gap: 6px; min-height: 36px; }
-  .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--step-0); }
+  .title { flex: 1; min-width: 0; margin: 0; font-family: var(--font-ui); font-weight: 400; line-height: 1.2; text-shadow: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--step-0); }
   .title strong { font-family: var(--font-display); font-variation-settings: 'SOFT' 100; font-weight: 800; font-size: var(--step-1); color: var(--accent); text-shadow: var(--sign-shadow); }
   .title small { font-size: var(--step--2); font-weight: 500; }
   .status { flex: none; font-size: .75rem; color: #ffb79e; white-space: nowrap; }
