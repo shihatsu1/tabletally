@@ -1,10 +1,24 @@
 # TableTally
 
+**[Play TableTally in your browser](https://tabletally.tabletally.workers.dev)** — free, no account or download needed.
+
 Card games with friends, on your phones. The host starts a table and picks the game; everyone else joins by scanning a QR code or typing a six-letter code. The app shuffles, deals, checks every play and keeps the score live on every phone. No accounts, no email, and you keep your seat after a refresh or a dropped connection.
 
 | Pusoy Dos | Pusoy | After a Pusoy hand |
 |---|---|---|
 | ![A Pusoy Dos hand held as a fan of cards](docs/screenshots/pusoy-dos.png) | ![Pusoy cards held as three overlapping rows](docs/screenshots/pusoy.png) | ![Everyone's rows after a hand, marked won or lost](docs/screenshots/pusoy-reveal.png) |
+
+## How to play
+
+1. Open **[TableTally](https://tabletally.tabletally.workers.dev)** on your phone or computer and choose **Start a table**.
+2. Pick Pusoy Dos, Pusoy, Tong-its or Poker, set the player count and table options, enter your display name, then choose **Create table**.
+3. Invite friends by sharing the table link or letting them scan its QR code. They can also open the app, choose **Join a table** and enter the six-letter table code. Each friend enters a display name and taps **Sit down**.
+4. Once every seat is filled, the host taps **Deal**. Play your cards in the app; it checks the moves, keeps everyone's cards private and records the score automatically.
+5. After the hand, review the results. The host taps **Deal the next hand** to keep playing.
+
+**Playing solo?** Add computer players when creating the table. Choose Easy, Normal or Hard to fill the other seats, then deal.
+
+Everyone needs an internet connection. Friends should join before the first hand starts. Keep using the same browser to return to your seat after a refresh or disconnect. If you host, save the host key shown when you create the table so you can reclaim your seat from another phone.
 
 ## Scores only, never money
 
