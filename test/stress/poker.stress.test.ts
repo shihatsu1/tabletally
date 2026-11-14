@@ -244,9 +244,12 @@ describe('Poker stress', () => {
             f.check(end[id] === want, () => `${ctx}: payout for ${id} is ${end[id]}, oracle says ${want} (totals ${JSON.stringify(totals)}, folded ${[...folded]}, board ${s!.board})`);
           }
           if (s.showdown.length > 1) showdowns++;
-          // the reveal never shows folded players, and shows every showdown player
+          // the reveal shows every player who did not fold (so every showdown player) and never a folded one
           const v = E.viewFor(s, null);
-          f.check(same((v.reveal ?? []).map((x) => x.id).sort(), s.showdown.map((x) => x.id).sort()), () => `${ctx}: reveal list differs from showdown`);
+          const shown = (v.reveal ?? []).map((x) => x.id).sort();
+          f.check(same(shown, ids.filter((id) => !folded.has(id)).sort()), () => `${ctx}: reveal is not exactly the players who did not fold`);
+          f.check(s.showdown.every((x) => shown.includes(x.id)), () => `${ctx}: a showdown player is missing from the reveal`);
+          f.check((v.reveal ?? []).every((x) => x.showed === s!.showdown.some((y) => y.id === x.id)), () => `${ctx}: showed flag is wrong`);
           // the ledger accepts it
           const input = E.result(s);
           const problems = poker.validate(setup, ids, input as never);
