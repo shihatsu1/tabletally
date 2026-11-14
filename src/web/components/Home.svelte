@@ -61,7 +61,7 @@
 </script>
 
 <header class="hero">
-  <h1><img src="/brand/logo-lockup.jpg" alt="TableTally" width="260" height="260" /></h1>
+  <h1><img src="/brand/logo-lockup.webp" alt="TableTally" width="260" height="260" /></h1>
   <p class="dim">{t('app.tagline')}</p>
 </header>
 
