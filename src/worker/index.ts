@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { cryptoRng } from '../core/rng';
+import { RateLimiter, originAllowed, randomCode, readBodyLimited } from './limits';
 import {
   MAX_MESSAGE_BYTES,
   ROOM_CODE_ALPHABET,
@@ -33,10 +34,18 @@ async function sha256Hex(text: string): Promise<string> {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-function newRoomCode(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(ROOM_CODE_LENGTH));
-  return [...bytes].map((b) => ROOM_CODE_ALPHABET[b % ROOM_CODE_ALPHABET.length]).join('');
-}
+const newRoomCode = (): string => randomCode(ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, (n) => crypto.getRandomValues(new Uint8Array(n)));
+
+/** Per address, per minute. A table of friends never comes close; a script probing codes does. */
+const LIMITS = {
+  create: new RateLimiter(10, 60_000),
+  status: new RateLimiter(60, 60_000),
+  socket: new RateLimiter(60, 60_000),
+};
+const MAX_CREATE_BYTES = 2048;
+const tooMany = (): Response => json({ code: 'rate_limited', message: 'Too many requests. Wait a minute and try again.' }, 429);
+const clientKey = (request: Request): string => request.headers.get('CF-Connecting-IP') ?? 'local';
+const ROOM_PATH = /^\/api\/rooms\/([^/]+)\/(status|ws)$/;
 
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), {
@@ -50,8 +59,9 @@ export default {
 
     // POST /api/rooms: create a room and return its code. The caller's device token becomes the host key.
     if (url.pathname === '/api/rooms' && request.method === 'POST') {
-      const raw = await request.text();
-      if (raw.length > 2048) return json({ code: 'too_large', message: 'Request too large.' }, 413);
+      if (!LIMITS.create.allow(clientKey(request), Date.now())) return tooMany();
+      const raw = await readBodyLimited(request, MAX_CREATE_BYTES);
+      if (raw === null) return json({ code: 'too_large', message: 'Request too large.' }, 413);
       let body: Record<string, unknown>;
       try {
         const parsed: unknown = JSON.parse(raw);
@@ -77,22 +87,19 @@ export default {
       return json({ code: 'busy', message: 'Could not allocate a room code. Try again.' }, 503);
     }
 
-    // GET /api/rooms/:code/status: lets a reconnecting phone tell "expired" from "my network dropped".
-    const st = /^\/api\/rooms\/([A-Z0-9]{5})\/status$/.exec(url.pathname);
-    if (st && request.method === 'GET') {
-      const stub = env.ROOM.get(env.ROOM.idFromName(st[1] as string));
-      return stub.fetch('https://room/status');
-    }
-
-    // GET /api/rooms/:code/ws: live connection for one room.
-    const m = /^\/api\/rooms\/([A-Z0-9]{5})\/ws$/.exec(url.pathname);
+    // GET /api/rooms/:code/status lets a reconnecting phone tell "expired" from "my network dropped".
+    // GET /api/rooms/:code/ws is the live connection for one room.
+    // Both check the code against the real alphabet BEFORE touching a Durable Object, so junk never creates one.
+    const m = ROOM_PATH.exec(url.pathname);
     if (m) {
       const code = m[1] as string;
-      if (!ROOM_CODE_PATTERN.test(code)) return json({ code: 'bad_code', message: 'Unknown room.' }, 404);
-      if (request.headers.get('Upgrade') !== 'websocket') return json({ code: 'upgrade', message: 'Expected WebSocket.' }, 426);
-      const origin = request.headers.get('Origin');
-      if (origin && new URL(origin).host !== url.host) return json({ code: 'origin', message: 'Forbidden.' }, 403);
+      const kind = m[2] as 'status' | 'ws';
+      if (!(kind === 'status' ? LIMITS.status : LIMITS.socket).allow(clientKey(request), Date.now())) return tooMany();
+      if (!ROOM_CODE_PATTERN.test(code)) return json({ code: 'no_room', message: 'Unknown room.' }, 404);
       const stub = env.ROOM.get(env.ROOM.idFromName(code));
+      if (kind === 'status') return request.method === 'GET' ? stub.fetch('https://room/status') : json({ code: 'not_found', message: 'Not found.' }, 404);
+      if (request.headers.get('Upgrade') !== 'websocket') return json({ code: 'upgrade', message: 'Expected WebSocket.' }, 426);
+      if (!originAllowed(request.headers.get('Origin'), url.host)) return json({ code: 'origin', message: 'Forbidden.' }, 403);
       return stub.fetch(new Request('https://room/ws', request));
     }
 
@@ -108,10 +115,7 @@ export class Room extends DurableObject<Env> {
   private cache: RoomState | null = null;
   private persistedEvents = 0;
 
-  constructor(ctx: DurableObjectState, env: Env) {
-    super(ctx, env);
-    this.ensureSchema();
-  }
+  // Tables are created on the first save only, so looking up a code that does not exist writes nothing.
 
   private ensureSchema(): void {
     this.ctx.storage.sql.exec(
@@ -120,8 +124,13 @@ export class Room extends DurableObject<Env> {
     this.ctx.storage.sql.exec('CREATE TABLE IF NOT EXISTS events (seq INTEGER PRIMARY KEY, json TEXT NOT NULL)');
   }
 
+  private hasTables(): boolean {
+    return this.ctx.storage.sql.exec("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'meta'").toArray().length > 0;
+  }
+
   private load(): RoomState | null {
     if (this.cache) return this.cache;
+    if (!this.hasTables()) return null;
     const meta = this.ctx.storage.sql.exec('SELECT json FROM meta WHERE id = 1').toArray()[0];
     if (!meta) return null;
     const events = this.ctx.storage.sql
@@ -135,6 +144,7 @@ export class Room extends DurableObject<Env> {
 
   private async save(next: RoomState): Promise<void> {
     const { events, ...meta } = next;
+    this.ensureSchema();
     this.ctx.storage.transactionSync(() => {
       this.ctx.storage.sql.exec(
         'INSERT INTO meta (id, json) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json',
@@ -313,9 +323,8 @@ export class Room extends DurableObject<Env> {
       for (const s of this.ctx.getWebSockets()) s.close(4004, 'expired');
       this.cache = null;
       this.persistedEvents = 0;
+      // deleteAll() also drops the tables; load() treats missing tables as "no room", and a save recreates them.
       await this.ctx.storage.deleteAll();
-      // deleteAll() also drops the tables; recreate them so a late request finds an empty room, not an error.
-      this.ensureSchema();
       return;
     }
     // Not expired: this wake-up is a computer's move or a human's turn running out (or a kept room renewing).

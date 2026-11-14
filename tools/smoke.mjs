@@ -65,7 +65,7 @@ const res = await fetch(`${base}/api/rooms`, {
   body: JSON.stringify({ name: 'Smoke', gameId: 'pusoy-dos', playerCount: 4, unit: 'pts', hostName: 'A', token: hostTok }),
 });
 const created = await res.json();
-check('create room returns a 5-char code', res.ok && /^[A-Z2-9]{5}$/.test(created.code), JSON.stringify(created));
+check('create room returns a 6-character code', res.ok && /^[A-Z2-9]{6}$/.test(created.code), JSON.stringify(created));
 const code = created.code;
 
 const bad = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ name: 'x', gameId: 'nope', playerCount: 4, unit: 'p', hostName: 'A', token: token() }) });
@@ -75,10 +75,10 @@ const nullBody = await fetch(`${base}/api/rooms`, { method: 'POST', body: 'null'
 check('a JSON null body is a 400, not a crash', nullBody.status === 400, String(nullBody.status));
 const statusOk = await fetch(`${base}/api/rooms/${code}/status`);
 check('status route says a live room exists', statusOk.status === 200, String(statusOk.status));
-const statusNo = await fetch(`${base}/api/rooms/ZZZZZ/status`);
+const statusNo = await fetch(`${base}/api/rooms/ZZZZZZ/status`);
 check('status route says an unknown room does not', statusNo.status === 404, String(statusNo.status));
 
-const noRoom = await upgradeStatus('/api/rooms/ZZZZZ/ws', base);
+const noRoom = await upgradeStatus('/api/rooms/ZZZZZZ/ws', base);
 check('socket to a room that does not exist is refused', noRoom === 404, String(noRoom));
 
 // a phone that opens the link before giving a name sees the table, not an error
@@ -154,7 +154,7 @@ check('cross-origin socket is refused', crossOrigin === 403, String(crossOrigin)
     body: JSON.stringify({ name: 'Solo', gameId: 'pusoy-dos', playerCount: 4, unit: 'pts', hostName: 'A', token: tok, bots: ['easy', 'normal', 'hard'] }),
   });
   const made = await mk.json();
-  check('a solo play table is created with computers', mk.ok && /^[A-Z2-9]{5}$/.test(made.code), JSON.stringify(made));
+  check('a solo play table is created with computers', mk.ok && /^[A-Z2-9]{6}$/.test(made.code), JSON.stringify(made));
   const solo = connect(made.code, tok, 'A');
   await solo.open;
   solo.join();
@@ -331,6 +331,24 @@ check('cross-origin socket is refused', crossOrigin === 403, String(crossOrigin)
     check(`hand ${hand} is recorded as a ledger round and totals stay zero-sum`, st.room.rounds.length === hand && Object.values(st.room.totals).reduce((a, b) => a + b, 0) === 0, JSON.stringify(st.room.totals));
   }
   solo.ws.close();
+}
+
+// ---- the public routes hold up against junk (audit S01-S04)
+{
+  const opaque = await upgradeStatus(`/api/rooms/${code}/ws`, 'null');
+  check('a socket from an opaque origin is refused, not a crash', opaque === 403, String(opaque));
+  const big = await fetch(`${base}/api/rooms`, { method: 'POST', body: 'x'.repeat(1024 * 1024) });
+  check('a 1 MB create request is refused as too large', big.status === 413, String(big.status));
+  const junkJson = await fetch(`${base}/api/rooms`, { method: 'POST', body: '{' });
+  check('broken JSON is a 400', junkJson.status === 400 || junkJson.status === 429, String(junkJson.status));
+  const lower = await fetch(`${base}/api/rooms/abcdef/status`);
+  check('a code outside the room alphabet is a 404 straight away', lower.status === 404, String(lower.status));
+  let limited = false;
+  for (let i = 0; i < 15 && !limited; i++) {
+    const r = await fetch(`${base}/api/rooms`, { method: 'POST', body: '{}' });
+    limited = r.status === 429;
+  }
+  check('too many creates from one address in a minute are refused', limited);
 }
 
 for (const c of [host, b2, stranger, ...Object.values(guests)]) c.ws.close();

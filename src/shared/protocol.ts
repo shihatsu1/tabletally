@@ -6,8 +6,9 @@ export const MAX_MESSAGE_BYTES = 4096;
 export const MAX_NAME_LENGTH = 24;
 export const TOKEN_PATTERN = /^[0-9a-f]{32,64}$/;
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0 O 1 I L
-export const ROOM_CODE_LENGTH = 5;
-export const ROOM_CODE_PATTERN = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{5}$/;
+/** 31 letters and digits, 6 long: about 887 million codes, so guessing a live table is impractical. */
+export const ROOM_CODE_LENGTH = 6;
+export const ROOM_CODE_PATTERN = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/;
 
 /** Quick reactions anyone seated can send. They are shown for a moment and never stored. */
 export const REACTIONS = ['\u{1F44D}', '\u{1F602}', '\u{1F62E}', '\u{1F621}', '\u{1F62D}', '\u{1F525}', '\u{1F44F}', '\u{1F91D}'] as const;
