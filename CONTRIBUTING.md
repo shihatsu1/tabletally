@@ -36,7 +36,8 @@ Randomized suites, all seeded so a failure prints a seed you can replay:
 ```
 npm run stress:quick                 # about a minute
 npm run stress                       # thousands of games per suite (STRESS_N scales it: 0.05 quick, 10 long soak)
-node tools/stress.mjs                # live: hundreds of real WebSocket games against the dev Worker
+node tools/stress.mjs URL            # live: hundreds of real WebSocket games; start that Worker with
+                                     #   npx wrangler dev --port 8788 --var TT_RATE_LIMIT:off (test only)
 node tools/stress.mjs --persist      # also kills and restarts a private Worker mid-hand
 ```
 

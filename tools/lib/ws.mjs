@@ -37,6 +37,7 @@ export class Client {
         try { m = JSON.parse(text); } catch { return; }
         if (m.t === 'state') { this.state = m; for (const l of this.listeners) l(m); }
         else if (m.t === 'error') this.errors.push(m);
+        else if (m.t === 'lobby') this.lobby = m.lobby; // not seated: the table preview only
         else if (m.t === 'react') this.reacts++;
         else if (m.t === 'pong') this.pongs++;
       });

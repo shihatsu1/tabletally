@@ -1,5 +1,6 @@
 // Live stress test against a running `wrangler dev` (default http://localhost:8787).
-//   node tools/stress.mjs [baseUrl]                 soak + chaos + abuse
+//   node tools/stress.mjs [baseUrl]                 soak + chaos + abuse (start the Worker with
+//                                                   `npx wrangler dev --var TT_RATE_LIMIT:off`, or the soak hits the limits)
 //   STRESS_ROOMS=300 STRESS_CONC=60 node tools/stress.mjs
 //   node tools/stress.mjs --persist                 also kill and restart a private wrangler mid-hand (port 8791)
 // Plays whole games over real WebSockets with random human behaviour, and reports hung rooms, error codes and timings.
@@ -18,7 +19,7 @@ mkdirSync(out, { recursive: true });
 
 const report = { base, rooms: 0, hands: 0, hung: [], unexpectedErrors: {}, expectedErrors: {}, perGame: {}, abuse: [], persist: null, maxStateBytes: 0, messages: 0 };
 const bump = (o, k) => { o[k] = (o[k] ?? 0) + 1; };
-const EXPECTED = new Set(['not_host', 'bad_move', 'room_full', 'name_taken', 'not_seated', 'hand_running', 'bad_name', 'play_mode', 'game_started', 'no_clock']);
+const EXPECTED = new Set(['not_host', 'bad_move', 'room_full', 'name_taken', 'not_seated', 'hand_running', 'bad_name', 'game_started', 'nothing_to_restore', 'linked_hands', 'rate_limited']);
 
 const GAMES = {
   'pusoy-dos': { counts: [2, 3, 4], setupFor: () => undefined },
@@ -51,7 +52,7 @@ async function runRoom(i) {
   const humansWanted = 1 + rand(Math.min(3, count));
   const botLevels = Array.from({ length: count - humansWanted }, () => pick(['easy', 'normal', 'hard']));
   const hostTok = token();
-  const host = await createRoom(base, { name: `Soak ${i}`, gameId, playerCount: count, unit: 'pts', hostName: 'Host', token: hostTok, mode: 'play', bots: botLevels });
+  const host = await createRoom(base, { name: `Soak ${i}`, gameId, playerCount: count, unit: 'pts', hostName: 'Host', token: hostTok, bots: botLevels });
   if (host.status !== 200) { bump(report.unexpectedErrors, `create:${host.status}`); return; }
   const code = host.json.code;
   const g = (report.perGame[gameId] ??= { rooms: 0, hands: 0, ms: [], reconnects: 0 });
@@ -122,7 +123,9 @@ async function runRoom(i) {
         stranger = new Client(base, code, token(), 'Stranger');
         await stranger.open();
         await sleep(600);
-        if (!stranger.errors.some((e) => e.code === 'room_full' || e.code === 'game_started')) report.hung.push({ code, gameId, why: 'a stranger was not refused at a full table', errors: stranger.errors.map((e) => e.code) });
+        // A stranger gets only the preview (full or started) and never a seat, a state or any cards.
+        const refused = (stranger.lobby?.status === 'full' || stranger.lobby?.status === 'started') && !stranger.state;
+        if (!refused) report.hung.push({ code, gameId, why: 'a stranger was not refused at a full table', errors: stranger.errors.map((e) => e.code), lobby: stranger.lobby ?? null, gotState: !!stranger.state });
         stranger.close();
       } else if (r === 3 && clients.length > 1) { // a guest tries host-only actions and moves out of turn
         const guest = clients[1];
@@ -199,7 +202,7 @@ async function abuse() {
   note('bad create JSON is 400', badJson.status === 400, String(badJson.status));
   const noTok = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ name: 'x' }) });
   note('create without a device token is 400', noTok.status === 400);
-  const weird = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ name: 'x', gameId: 'pusoy-dos', playerCount: 4, unit: 'pts', hostName: 'H', token: token(), mode: 'play', bots: ['easy', 'easy', 'easy', 'easy'], setup: { __proto__: { x: 1 } } }) });
+  const weird = await fetch(`${base}/api/rooms`, { method: 'POST', body: JSON.stringify({ name: 'x', gameId: 'pusoy-dos', playerCount: 4, unit: 'pts', hostName: 'H', token: token(), bots: ['easy', 'easy', 'easy', 'easy'], setup: { __proto__: { x: 1 } } }) });
   note('too many computers is refused', weird.status === 400, String(weird.status));
   for (const method of ['GET', 'PUT', 'DELETE']) {
     const res = await fetch(`${base}/api/rooms`, { method });
@@ -210,18 +213,19 @@ async function abuse() {
   await sleep(1500);
   const seated = c.state.room.players.length;
   note('a join flood never over-fills the table', seated <= 4, `${seated} seated`);
-  const refused = flood.filter((x) => x.errors.some((e) => e.code === 'room_full')).length;
+  // Phones that do not get a seat are shown the preview with status "full", never the room or any cards.
+  const refused = flood.filter((x) => x.lobby?.status === 'full' && !x.state).length;
   note('everyone past the table size is told it is full', refused >= 40 - 3, `${refused}/40 refused`);
   flood.forEach((x) => x.close());
   c.close();
 }
 
 async function persist() {
-  const dir = `/tmp/tt-stress-persist-${Date.now()}`;
+  const dir = `${process.env.TMPDIR ?? '/tmp'}/tt-stress-persist-${Date.now()}`;
   const port = 8791;
   const pbase = `http://localhost:${port}`;
   const start = () => new Promise((resolve, reject) => {
-    const child = spawn('npx', ['wrangler', 'dev', '--port', String(port), '--persist-to', dir], { cwd: fileURLToPath(new URL('..', import.meta.url)), stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+    const child = spawn('npx', ['wrangler', 'dev', '--port', String(port), '--persist-to', dir, '--var', 'TT_RATE_LIMIT:off'], { cwd: fileURLToPath(new URL('..', import.meta.url)), stdio: ['ignore', 'pipe', 'pipe'], detached: true });
     let ready = false;
     const on = (b) => { if (!ready && String(b).includes(`Ready on`)) { ready = true; resolve(child); } };
     child.stdout.on('data', on);
@@ -234,8 +238,8 @@ async function persist() {
   let child = await start();
   try {
     const tok = token();
-    const a = await createRoom(pbase, { name: 'Persist', gameId: 'poker', playerCount: 3, unit: 'pts', hostName: 'H', token: tok, mode: 'play', bots: ['normal', 'hard'] });
-    const b = await createRoom(pbase, { name: 'Persist2', gameId: 'pusoy-dos', playerCount: 2, unit: 'pts', hostName: 'H', token: tok, mode: 'play', bots: ['easy'] });
+    const a = await createRoom(pbase, { name: 'Persist', gameId: 'poker', playerCount: 3, unit: 'pts', hostName: 'H', token: tok, bots: ['normal', 'hard'] });
+    const b = await createRoom(pbase, { name: 'Persist2', gameId: 'pusoy-dos', playerCount: 2, unit: 'pts', hostName: 'H', token: tok, bots: ['easy'] });
     const ca = new Client(pbase, a.json.code, tok, 'H');
     const cb = new Client(pbase, b.json.code, tok, 'H');
     await ca.open(); await cb.open();

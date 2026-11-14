@@ -29,6 +29,8 @@ import {
 
 export interface Env {
   ROOM: DurableObjectNamespace<Room>;
+  /** Test-only: `wrangler dev --var TT_RATE_LIMIT:off` lets load tests open many tables. Never set it in production. */
+  TT_RATE_LIMIT?: string;
 }
 
 async function sha256Hex(text: string): Promise<string> {
@@ -47,6 +49,7 @@ const LIMITS = {
 const MAX_CREATE_BYTES = 2048;
 /** A phone may send one reaction a second; a little under a second allows for timer jitter. */
 const REACT_GAP_MS = 900;
+const limited = (env: Env): boolean => env.TT_RATE_LIMIT !== 'off';
 const tooMany = (): Response => json({ code: 'rate_limited', message: 'Too many requests. Wait a minute and try again.' }, 429);
 const clientKey = (request: Request): string => request.headers.get('CF-Connecting-IP') ?? 'local';
 const ROOM_PATH = /^\/api\/rooms\/([^/]+)\/(status|ws)$/;
@@ -63,7 +66,7 @@ export default {
 
     // POST /api/rooms: create a room and return its code. The caller's device token becomes the host key.
     if (url.pathname === '/api/rooms' && request.method === 'POST') {
-      if (!LIMITS.create.allow(clientKey(request), Date.now())) return tooMany();
+      if (limited(env) && !LIMITS.create.allow(clientKey(request), Date.now())) return tooMany();
       const raw = await readBodyLimited(request, MAX_CREATE_BYTES);
       if (raw === null) return json({ code: 'too_large', message: 'Request too large.' }, 413);
       let body: Record<string, unknown>;
@@ -99,7 +102,7 @@ export default {
     if (m) {
       const code = m[1] as string;
       const kind = m[2] as 'status' | 'ws';
-      if (!(kind === 'status' ? LIMITS.status : LIMITS.socket).allow(clientKey(request), Date.now())) return tooMany();
+      if (limited(env) && !(kind === 'status' ? LIMITS.status : LIMITS.socket).allow(clientKey(request), Date.now())) return tooMany();
       if (!ROOM_CODE_PATTERN.test(code)) return json({ code: 'no_room', message: 'Unknown room.' }, 404);
       const stub = env.ROOM.get(env.ROOM.idFromName(code));
       if (kind === 'status') return request.method === 'GET' ? stub.fetch('https://room/status') : json({ code: 'not_found', message: 'Not found.' }, 404);
