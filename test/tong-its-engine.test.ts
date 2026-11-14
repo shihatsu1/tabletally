@@ -161,6 +161,38 @@ describe('how a hand ends', () => {
     expect(E.result(s)).toMatchObject({ burned: ['B', 'C'] });
   });
 
+  it('after an opponent lays off onto your meld you cannot call Draw on your next turn; after that turn you can', () => {
+    // B owns a run 4-5-6 of spades; A (on turn, after drawing) lays the 7 of spades onto it, then discards
+    const melds = [
+      { id: 1, owner: 'B', kind: 'run' as const, cards: [C('S', 4), C('S', 5), C('S', 6)], hidden: false },
+      { id: 2, owner: 'A', kind: 'set' as const, cards: [C('S', 2), C('H', 2), C('D', 2)], hidden: false },
+    ];
+    let s = base({ hands: { A: [C('S', 7), C('H', 9), C('C', 9)], B: [C('S', 13), C('H', 12)], C: [C('D', 12)] }, melds, nextMeld: 3, phase: 'play', drew: 'stock' });
+    s = ok(s, 'A', { t: 'sapaw', meld: 1, card: C('S', 7) });
+    expect(E.viewFor(s, 'B').drawBlocked).toEqual(['B']);
+    s = ok(s, 'A', { t: 'discard', card: C('H', 9) });
+    expect(s.turn).toBe('B');
+    expect(E.validate(s, 'B', { t: 'fight' })[0]).toMatch(/laid off onto your meld/);
+    // the computer players respect it too
+    for (const level of BOT_LEVELS) for (let seed = 0; seed < 20; seed++) expect(E.bot!(E.viewFor(s, 'B'), level, seed)).not.toEqual({ t: 'fight' });
+    // B plays the turn out; the block is served
+    s = ok(s, 'B', { t: 'draw', from: 'stock' });
+    s = ok(s, 'B', { t: 'discard', card: C('H', 12) });
+    expect(s.drawBlocked).toEqual([]);
+    // laying off onto your own meld never blocks you
+    let own = base({ hands: { A: [C('C', 2), C('H', 9)], B: [C('S', 13)], C: [C('D', 12)] }, melds, nextMeld: 3, phase: 'play', drew: 'stock' });
+    own = ok(own, 'A', { t: 'sapaw', meld: 2, card: C('C', 2) });
+    expect(own.drawBlocked).toEqual([]);
+  });
+
+  it('hands saved before the Draw-block rule (no drawBlocked field) still play', () => {
+    const melds = [{ id: 1, owner: 'A', kind: 'set' as const, cards: [C('S', 2), C('H', 2), C('D', 2)], hidden: false }];
+    const old = base({ hands: { A: [C('S', 1)], B: [C('S', 13)], C: [C('S', 12)] }, melds, nextMeld: 2 });
+    delete (old as Partial<TiState>).drawBlocked;
+    expect(E.validate(old, 'A', { t: 'fight' })).toEqual([]);
+    expect(E.viewFor(old, 'A').drawBlocked).toEqual([]);
+  });
+
   it('only a player who has shown a meld may call Draw', () => {
     const s = base({ hands: { A: [C('S', 1)], B: [C('S', 13)], C: [C('S', 12)] } });
     expect(E.validate(s, 'A', { t: 'fight' })[0]).toMatch(/after showing a meld/);

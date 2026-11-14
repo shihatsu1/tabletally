@@ -6,11 +6,13 @@
     /** 0..51, or null for a face-down card. */
     card: number | null;
     selected?: boolean;
+    /** Lit up as a suggestion (for example the cards the top discard would meld with). */
+    hint?: boolean;
     /** Width in px. Height follows the real card ratio. */
     size?: number;
     onclick?: () => void;
   }
-  let { card, selected = false, size = 46, onclick }: Props = $props();
+  let { card, selected = false, hint = false, size = 46, onclick }: Props = $props();
 
   // Card suits are S H D C (the sprite's rows); ranks A..K are its columns.
   const GLYPH = ['♠', '♥', '♦', '♣'];
@@ -34,9 +36,9 @@
 {/snippet}
 
 {#if onclick}
-  <button type="button" class="card" class:selected style="--cw: {size}px" aria-pressed={selected} aria-label={label} {onclick}>{@render face()}</button>
+  <button type="button" class="card" class:selected class:hint style="--cw: {size}px" aria-pressed={selected} aria-label={label} {onclick}>{@render face()}</button>
 {:else}
-  <span class="card" class:selected style="--cw: {size}px" role="img" aria-label={label}>{@render face()}</span>
+  <span class="card" class:selected class:hint style="--cw: {size}px" role="img" aria-label={label}>{@render face()}</span>
 {/if}
 
 <style>
@@ -48,6 +50,7 @@
     box-shadow: -1px 2px 5px rgba(0,0,0,.4); cursor: default; color: #1d1608;
   }
   button.card { cursor: pointer; }
+  .hint { border-color: var(--pos); box-shadow: 0 0 0 3px var(--pos), 0 0 14px color-mix(in srgb, var(--pos) 70%, transparent); }
   .selected { border-color: var(--brass); box-shadow: 0 0 0 3px var(--brass), 0 6px 14px rgba(0,0,0,.5); }
   .idx { position: absolute; left: 6%; top: 3%; display: flex; flex-direction: column; align-items: center; line-height: .95; font-family: var(--font-display); }
   .idx b { font-size: calc(var(--cw) * .24); }

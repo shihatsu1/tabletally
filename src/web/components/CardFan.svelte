@@ -5,6 +5,8 @@
     /** Cards to show; null entries are face-down. */
     cards: readonly (number | null)[];
     selected?: readonly number[];
+    /** Cards to light up as a suggestion; they also rise a little. */
+    hinted?: readonly number[];
     onpick?: (card: number) => void;
     /** Widest a card may be, in px. */
     maxW?: number;
@@ -14,7 +16,7 @@
     gaps?: readonly number[];
     label?: string;
   }
-  let { cards, selected = [], onpick, maxW = 96, spread, gaps = [], label }: Props = $props();
+  let { cards, selected = [], hinted = [], onpick, maxW = 96, spread, gaps = [], label }: Props = $props();
 
   /**
    * Cards held in one hand: each card turns around a point below the hand, so the cards make an arc and the
@@ -80,8 +82,9 @@
     {#each cards as c, i (c ?? `b${i}`)}
       {@const p = layout[i]!}
       {@const sel = c !== null && selected.includes(c)}
-      <span class="slot" style="width: {p.cw}px; transform: translate({p.x}px, {p.y - (sel ? p.cw * LIFT : 0)}px) rotate({p.a}deg); z-index: {i}">
-        <PlayingCard card={c} size={p.cw} selected={sel} onclick={onpick && c !== null ? () => onpick(c) : undefined} />
+      {@const hint = c !== null && !sel && hinted.includes(c)}
+      <span class="slot" style="width: {p.cw}px; transform: translate({p.x}px, {p.y - (sel ? p.cw * LIFT : hint ? p.cw * LIFT * 0.6 : 0)}px) rotate({p.a}deg); z-index: {i}">
+        <PlayingCard card={c} size={p.cw} selected={sel} {hint} onclick={onpick && c !== null ? () => onpick(c) : undefined} />
       </span>
     {/each}
   {/if}

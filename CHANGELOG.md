@@ -18,6 +18,9 @@ All notable changes to TableTally. Dates are in Asia/Tokyo. Codes in brackets ar
 ### Tong-its hand
 - Your hand is held the way players hold it: the melds you could lay down come first, each with a gap after it, then the other cards in rank order (A, 2, 3 ... K) instead of by suit.
 - The stock is a stack of face-down cards in the middle of the table, with the count on it. On your draw it glows; tap it to draw (the separate button is gone).
+- The discard pile shows the last few cards with a count; tap it to see every discarded card. When the top discard makes a meld with your cards on your draw, it glows, the cards it goes with light up green in your hand, and tapping it takes it. Otherwise there is no take option (the "Take discard" button is gone).
+- Taking the top discard lays its meld down at once: with one way to meld it, the tap does it; with more, you tap the cards to meld it with, then Show meld (or Cancel). You can no longer just take it into your hand.
+- If an opponent lays a card off onto your meld (sapaw), you cannot call Draw on your next turn; the button is hidden and the server refuses it (computer players too).
 - Each suggested meld has a chip above the hand; tap its ✕ to put those cards back among the others, and "Group again" to undo.
 
 ### Every game the same

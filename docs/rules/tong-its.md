@@ -28,7 +28,7 @@ While a hand is on, your phone shows **Points in hand**: what your cards would c
 | Ending | What happens |
 |---|---|
 | **Tong-its** | A player uses every card (melds, lay-offs, or the last card discarded). |
-| **Draw (fight)** | At the start of your turn, if you have shown a meld, you may call Draw. Players with no meld shown fold on their own; the others fold or challenge. If everyone folds the caller wins an ordinary hand. Otherwise the lowest total wins and a tie goes to the challenger. |
+| **Draw (fight)** | At the start of your turn, if you have shown a meld, you may call Draw. Players with no meld shown fold on their own; the others fold or challenge. If everyone folds the caller wins an ordinary hand. Otherwise the lowest total wins and a tie goes to the challenger. A player an opponent has laid a card off onto (*sapaw*) cannot call Draw on their next turn (as the online apps play it; the user's group rule, 2026-11-14). |
 | **Stock runs out** | The player who drew the last card finishes the turn; then the lowest total among players who showed a meld wins. **House choice:** a tie goes to the player who would have drawn next. |
 
 **Burned (*sunog*):** a player who never showed a meld by the end of the hand.

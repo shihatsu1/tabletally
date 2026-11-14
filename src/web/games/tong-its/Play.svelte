@@ -26,6 +26,34 @@
   const top = $derived(view.discards[view.discards.length - 1]);
   const canDraw = $derived(myTurn && view.phase === 'draw' && view.stockCount > 0);
   const canTake = $derived(top !== undefined && meldsContaining(view.hand, top).length > 0);
+  /** On your draw, when the top discard makes a meld with your cards: you may take it, and those cards light up. */
+  const canTakeNow = $derived(myTurn && view.phase === 'draw' && canTake);
+  const useWith = $derived(canTakeNow && top !== undefined ? [...new Set(meldsContaining(view.hand, top).flat())].filter((c) => c !== top) : []);
+  let pileOpen = $state(false);
+  /**
+   * Taking the top discard always lays its meld down at once. With only one way to meld it (two matching cards)
+   * that happens on the tap; with more, you first tap the cards to meld it with, then Show meld.
+   */
+  let choosing = $state(false);
+  $effect(() => {
+    if (!canTakeNow) choosing = false;
+  });
+  const takeMeld = $derived(choosing && top !== undefined && picked.length >= 2 ? [...picked, top] : null);
+  const takeOk = $derived(takeMeld !== null && meldKind(takeMeld) !== null);
+  function takeAndMeld(cards: number[]) {
+    onmove({ t: 'draw', from: 'discard' });
+    onmove({ t: 'meld', cards });
+    picked = [];
+    choosing = false;
+  }
+  function tapDiscard() {
+    if (!canTakeNow || top === undefined) return;
+    if (useWith.length === 2) takeAndMeld([...useWith, top]);
+    else {
+      choosing = true;
+      picked = [];
+    }
+  }
   const kind = $derived(chosen.length >= 3 ? meldKind(chosen) : null);
   const iAmOpen = $derived(me !== null && view.opened.includes(me));
   const one = $derived(chosen.length === 1 ? (chosen[0] as number) : null);
@@ -34,6 +62,10 @@
   const meldOk = $derived(kind !== null && allowed(chosen));
 
   function toggle(c: number) {
+    if (choosing) {
+      if (useWith.includes(c)) picked = picked.includes(c) ? picked.filter((x) => x !== c) : [...picked, c];
+      return;
+    }
     if (!myTurn || view.phase !== 'play') return;
     picked = picked.includes(c) ? picked.filter((x) => x !== c) : [...picked, c];
   }
@@ -93,7 +125,16 @@
   const byOwner = $derived(view.players.map((id) => ({ id, melds: view.melds.filter((m) => m.owner === id) })).filter((o) => o.melds.length > 0));
 </script>
 
+<svelte:window onkeydown={(e) => e.key === 'Escape' && (pileOpen = false)} />
 <div class="ti">
+  {#if pileOpen}
+    <div class="pilelist" role="dialog" aria-label={t('tong.play.pileTitle', { n: view.discards.length })}>
+      <strong>{t('tong.play.pileTitle', { n: view.discards.length })}</strong>
+      <p class="dim small">{t('tong.play.pileOrder')}</p>
+      <div class="pilecards">{#each view.discards as c (c)}<PlayingCard card={c} size={44} />{/each}</div>
+      <button type="button" class="ghost" onclick={() => (pileOpen = false)}>{t('room.closeMenu')}</button>
+    </div>
+  {/if}
   <div class="status" class:mine={myTurn} aria-live="polite">
     <span class="msg">{#if myTurn}<strong>{t('play.yourTurn')}</strong>{#if status} · {/if}{/if}{status}</span>
     <HowToPlay small title={t('play.howTo')} items={RULES.map((k) => t(k))} />
@@ -115,7 +156,20 @@
         <span class="stock" role="img" aria-label={`${t('tong.play.stock')}: ${view.stockCount}`}>{@render stack()}</span>
       {/if}
       </span>
-      <span class="pile"><span class="dim small">{t('tong.play.discard')}</span>{#if top !== undefined}<PlayingCard card={top} size={50} />{:else}<span class="dim">—</span>{/if}</span>
+      <span class="pile"><span class="dim small" aria-hidden="true">{t('tong.play.discard')}</span>
+        {#if top !== undefined}
+          <!-- the discard pile: the top card in front of the last few; tap it to take the card when you can, otherwise to see the whole pile -->
+          <span class="dpile">
+            {#each view.discards.slice(-3, -1) as c, k (c)}<span class="under" style="--k: {k}"><PlayingCard card={c} size={50} /></span>{/each}
+            {#if canTakeNow}
+              <button type="button" class="dtop live" class:on={choosing} aria-label={t('tong.play.takeDiscard')} aria-pressed={choosing} onclick={tapDiscard}><PlayingCard card={top} size={50} /></button>
+            {:else}
+              <button type="button" class="dtop" aria-label={t('tong.play.seePile', { n: view.discards.length })} onclick={() => (pileOpen = true)}><PlayingCard card={top} size={50} /></button>
+            {/if}
+            <button type="button" class="dcount" aria-label={t('tong.play.seePile', { n: view.discards.length })} onclick={() => (pileOpen = true)}>{view.discards.length}</button>
+          </span>
+        {:else}<span class="dim">—</span>{/if}
+      </span>
     </div>
     <div class="melds">
       {#each byOwner as o (o.id)}
@@ -155,12 +209,16 @@
         {#if points !== null}<span class="points" aria-live="polite">{t('tong.play.points', { n: points })}</span>{/if}
       </div>
     {/if}
-    <div class="hand"><CardFan cards={held.cards} gaps={held.gaps} selected={picked} onpick={toggle} maxW={124} label={t('play.yourHand')} /></div>
+    <div class="hand"><CardFan cards={held.cards} gaps={held.gaps} selected={picked} hinted={useWith} onpick={toggle} maxW={124} label={t('play.yourHand')} /></div>
 
-    {#if myTurn && view.phase === 'draw'}
+    {#if myTurn && view.phase === 'draw' && choosing}
       <div class="row">
-        <button type="button" disabled={!canTake} onclick={() => send({ t: 'draw', from: 'discard' })}>{t('tong.play.takeDiscard')}</button>
-        {#if iAmOpen}<button type="button" class="ghost" onclick={() => send({ t: 'fight' })}>{t('tong.play.callDraw')}</button>{/if}
+        <button type="button" class="primary" disabled={!takeOk} onclick={() => takeMeld && takeAndMeld(takeMeld)}>{t('tong.play.meld')}</button>
+        <button type="button" class="ghost" onclick={() => { choosing = false; picked = []; }}>{t('tong.play.cancel')}</button>
+      </div>
+    {:else if myTurn && view.phase === 'draw'}
+      <div class="row">
+        {#if iAmOpen && me !== null && !view.drawBlocked.includes(me)}<button type="button" class="ghost" onclick={() => send({ t: 'fight' })}>{t('tong.play.callDraw')}</button>{/if}
       </div>
     {:else if myTurn && view.phase === 'play'}
       <div class="row">
@@ -196,6 +254,19 @@
   .mat { padding: 6px 8px; border-radius: 12px; border: 1px dashed var(--line); display: flex; flex-direction: column; gap: 6px; flex: 0 1 auto; min-height: 0; overflow: hidden; }
   .piles { display: flex; gap: 22px; justify-content: center; align-items: center; }
   .pile { display: inline-flex; gap: 6px; align-items: center; }
+  .row { min-height: 44px; }
+  /* the discard pile: up to two older cards peek out to the left of the top card */
+  .dpile { position: relative; display: block; width: 66px; height: 73px; }
+  .dpile .under { position: absolute; top: 0; left: calc(var(--k) * 8px); }
+  .dtop { position: absolute; top: 0; left: 16px; padding: 0; min-height: 0; border: 0; background: none; border-radius: 6px; z-index: 3; }
+  .dtop.live { animation: stock-glow 1.4s ease-in-out infinite; }
+  .dtop.on { animation: none; transform: translateY(-6px); }
+  .dtop.live :global(.card) { box-shadow: 0 0 0 3px var(--pos), 0 6px 14px rgba(0,0,0,.5); }
+  .dcount { position: absolute; right: -10px; bottom: -8px; z-index: 5; min-width: 28px; min-height: 24px; padding: 1px 6px; border-radius: 999px; background: var(--bg-deep); border: 1px solid var(--line); font-size: .75rem; color: var(--accent); }
+  @media (prefers-reduced-motion: reduce) { .dtop.live { animation: none; } }
+  .pilelist { position: fixed; z-index: 25; left: 10px; right: 10px; top: 52px; max-height: calc(100% - 64px); overflow-y: auto; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--brass); background: var(--felt-900, #0b2f25); color: var(--cream, #f3e9d2); box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+  .pilecards { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
+  .pilelist > button { min-height: 40px; padding: 6px 18px; }
   /* the stock: up to four face-down cards, each a little up and to the left of the one below */
   .stock { position: relative; display: block; width: 58px; height: 81px; padding: 0; min-height: 0; border: 0; background: none; border-radius: 6px; }
   .stock .layer { position: absolute; left: calc(var(--k) * 2px); top: calc(8px - var(--k) * 2px); }

@@ -104,6 +104,11 @@ export interface TiState {
   stockOut: boolean;
   fight: { caller: string; replies: Record<string, 'fold' | 'challenge'> } | null;
   sagasa: Record<string, number>;
+  /**
+   * Players an opponent has laid a card off onto (sapaw): they may not call Draw on their next turn. Cleared when
+   * that player's turn ends. Optional so hands saved before this rule still load.
+   */
+  drawBlocked?: string[];
   end: { winner: string; ending: Ending } | null;
 }
 
@@ -145,6 +150,8 @@ export interface TiView {
   opened: string[];
   fight: { caller: string; replies: Record<string, 'fold' | 'challenge'> } | null;
   sagasa: Record<string, number>;
+  /** Players who may not call Draw on their next turn, because an opponent laid off onto their meld. */
+  drawBlocked: string[];
   done: boolean;
   end: { winner: string; ending: Ending } | null;
   /** Only once the hand is over. */
@@ -199,6 +206,7 @@ function start(_setup: TongItsSetup, players: readonly string[], seed: number | 
     stockOut: false,
     fight: null,
     sagasa: Object.fromEntries(players.map((id) => [id, 0])),
+    drawBlocked: [],
     end: null,
   };
 }
@@ -251,6 +259,7 @@ function validate(s: TiState, pid: string, raw: unknown): string[] {
     }
     case 'fight': {
       if (s.phase !== 'draw') return ['you can only call Draw at the start of your turn'];
+      if ((s.drawBlocked ?? []).includes(pid)) return ['an opponent laid off onto your meld, so you cannot call Draw this turn'];
       return openedBy(s, pid) ? [] : ['you can only call Draw after showing a meld'];
     }
     case 'respond': {
@@ -326,6 +335,7 @@ function apply(state: TiState, pid: string, move: TiMove): TiState {
     discards: [...state.discards],
     melds: state.melds.map((m) => ({ ...m, cards: [...m.cards] })),
     sagasa: { ...state.sagasa },
+    drawBlocked: [...(state.drawBlocked ?? [])],
   };
 
   switch (move.t) {
@@ -358,12 +368,16 @@ function apply(state: TiState, pid: string, move: TiMove): TiState {
       s.hands[pid] = without(s.hands[pid] as Card[], [move.card]);
       if (meld.kind === 'set' && meld.owner === pid && s.drew === 'stock' && s.drawnCard === move.card) s.sagasa[pid] = (s.sagasa[pid] ?? 0) + 1;
       meld.cards = [...meld.cards, move.card].sort((a, b) => (meld.kind === 'run' ? rankOf(a) - rankOf(b) : a - b));
+      // Laying off onto an opponent's meld stops them calling Draw on their next turn.
+      if (meld.owner !== pid && !(s.drawBlocked as string[]).includes(meld.owner)) (s.drawBlocked as string[]).push(meld.owner);
       if (s.mustMeld === move.card) s.mustMeld = null;
       return (s.hands[pid] as Card[]).length === 0 ? finish(s, pid, 'tongits') : s;
     }
     case 'discard': {
       s.hands[pid] = without(s.hands[pid] as Card[], [move.card]);
       s.discards.push(move.card);
+      // Your turn is over, so a block from an earlier sapaw has been served.
+      s.drawBlocked = (s.drawBlocked as string[]).filter((id) => id !== pid);
       if ((s.hands[pid] as Card[]).length === 0) return finish(s, pid, 'tongits');
       if (s.stockOut) return endByStock(s);
       const i = s.players.indexOf(pid);
@@ -416,6 +430,7 @@ function viewFor(s: TiState, pid: string | null): TiView {
     opened: s.players.filter((id) => openedBy(s, id)),
     fight: s.fight,
     sagasa: s.sagasa,
+    drawBlocked: [...(s.drawBlocked ?? [])],
     done: over,
     end: s.end,
   };
@@ -506,7 +521,7 @@ function tiBot(view: TiView, level: BotLevel, seed: number): TiMove {
 
   if (view.phase === 'draw') {
     const opponents = view.players.filter((id) => id !== me);
-    if (view.opened.includes(me) && level !== 'easy') {
+    if (view.opened.includes(me) && !view.drawBlocked.includes(me) && level !== 'easy') {
       const callLimit = level === 'normal' ? 6 : Math.min(12, Math.min(...opponents.map(guess)) * 0.5);
       if (myPoints <= callLimit) return { t: 'fight' };
     }
