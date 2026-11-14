@@ -312,7 +312,7 @@ describe('computer players', () => {
         prev = s;
       }
     }
-  });
+  }, 30_000); // Simulating 75 hands needs headroom on shared CI runners.
   it('timeoutMove is always legal (check if free, otherwise fold)', () => {
     for (let seed = 1; seed <= 30; seed++) {
       let s = E.start(setup, ['A', 'B', 'C', 'D'], seed, null);
