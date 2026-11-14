@@ -92,6 +92,15 @@
       save(view.hand, next);
     }
   }
+  /** Move the whole middle row to the bottom and the bottom row to the middle (both hold 5 cards). */
+  function swapRows() {
+    if (layout.length !== 13) return;
+    const next = [...rows.front, ...rows.back, ...rows.middle];
+    layout = next;
+    sel = null;
+    touched = true;
+    save(view.hand, next);
+  }
   function confirm() {
     if (problem !== null) return;
     onmove({ t: 'set', back: rows.back, middle: rows.middle, front: rows.front });
@@ -114,6 +123,7 @@
       <ul>
         <li>{t('pusoy.play.rule.layout')}</li>
         <li>{t('pusoy.play.rule.swap')}</li>
+        <li>{t('pusoy.play.rule.swapRows')}</li>
         <li>{t('pusoy.play.rule.order')}</li>
         <li>{t('pusoy.play.rule.ranks')}</li>
         <li>{t('pusoy.play.rule.secret')}</li>
@@ -174,7 +184,10 @@
       <HeldRows rows={[rows.front, rows.middle, rows.back]} labels={labelsOf(rows)} selected={sel} onpick={pick} bad={touched && problem === 'order'} label={t('play.yourHand')} />
     </div>
     {#if touched && problem === 'order'}<p class="hint" role="alert">{t('pusoy.play.order')}</p>{/if}
-    <button type="button" class="primary" disabled={problem !== null} onclick={confirm}>{t('pusoy.play.confirm')}</button>
+    <div class="acts">
+      <button type="button" onclick={swapRows}>⇅ {t('pusoy.play.swapRows')}</button>
+      <button type="button" class="primary" disabled={problem !== null} onclick={confirm}>{t('pusoy.play.confirm')}</button>
+    </div>
     {#if waiting.length > 0}<p class="dim small">{t('pusoy.play.waiting', { names: waiting.map(nameOf).join(', ') })}</p>{/if}
   {/if}
 </div>
@@ -188,6 +201,8 @@
   .rules li { margin: .3em 0; }
   .hand { flex: 1 1 0; min-height: 200px; padding-right: 2px; }
   .nat-btn { width: 100%; }
+  .acts { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .acts button { min-height: 44px; padding: 6px 8px; line-height: 1.15; }
   .hint { margin: 0; color: #ffb79e; font-size: .8rem; text-align: center; }
   .small { margin: 0; font-size: .78rem; text-align: center; }
   .legend { padding-right: 44px; text-align: left; }

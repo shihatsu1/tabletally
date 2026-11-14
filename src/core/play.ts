@@ -32,8 +32,6 @@ export interface PlayEngine<Setup = any, State = any, Move = any, View = any> {
   pending?(state: State): string[];
   /** True when `pending` can hold several players at once. Their one shared time limit starts when the hand is dealt. */
   simultaneous?: boolean;
-  /** Multiplies the host's time-per-turn for this game (setting 13 cards takes longer than one move). Default 1. */
-  turnFactor?: number;
   /** Human-readable problems with a move. Empty means legal. */
   validate(state: State, playerId: string, move: unknown): string[];
   /** Apply a validated move. */

@@ -18,7 +18,10 @@
   // svelte-ignore state_referenced_locally
   const saved = Number.parseInt(getItem(`tt.stake.${room.gameId}`) ?? '', 10);
   let stakeText = $state(String(Number.isSafeInteger(saved) && saved > 0 ? saved : stakeCfg?.start ?? 1));
-  let turnSeconds = $state(Number.parseInt(getItem('tt.turnSeconds') ?? '0', 10) || 0);
+  /** Time per turn, the same choices in every game (in Pusoy it is the time to set the whole hand). */
+  const TURN_CHOICES = [0, 60, 120, 180] as const;
+  const savedTurn = Number.parseInt(getItem('tt.turnSeconds') ?? '0', 10);
+  let turnSeconds = $state<number>((TURN_CHOICES as readonly number[]).includes(savedTurn) ? savedTurn : 0);
   // Stakeless games (poker) still send a stake of 1; the server ignores it.
   const stake = $derived(!stakeCfg ? 1 : /^\d{1,8}$/.test(stakeText) ? Number.parseInt(stakeText, 10) : 0);
 
@@ -57,18 +60,19 @@
   const secondsLeft = $derived(remainingMs === null ? null : Math.ceil(remainingMs / 1000));
   const ringOffset = $derived(100 * (1 - Math.min(1, (remainingMs ?? 0) / visibleTurnMs)));
   const clock = $derived(secondsLeft === null ? '' : secondsLeft >= 60 ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}` : `${secondsLeft}s`);
+  const urgency = $derived(secondsLeft === null ? '' : secondsLeft <= 10 ? 'low' : secondsLeft <= 30 ? 'warn' : '');
 </script>
 
 <div class="pt">
   {#if secondsLeft !== null && !over}
-    <div class="timer" class:low={secondsLeft <= 5} role="timer" aria-label={t('play.timeLeft', { t: clock })}>
+    <div class="timer {urgency}" role="timer" aria-label={t('play.timeLeft', { t: clock })}>
       {#key deadline}
         <svg viewBox="0 0 64 64" aria-hidden="true">
           <circle class="timer-track" cx="32" cy="32" r="28" />
           <circle class="timer-ring" cx="32" cy="32" r="28" pathLength="100" stroke-dasharray="100 100" stroke-dashoffset={ringOffset} />
         </svg>
       {/key}
-      <span class="timer-number" aria-hidden="true">{secondsLeft}</span>
+      <span class="timer-number" aria-hidden="true">{clock}</span>
     </div>
   {/if}
   {#if canShowLast}<button type="button" class="ghost last" aria-expanded={showLast} onclick={() => (showLast = !showLast)}>{t('play.lastHand')}</button>{/if}
@@ -85,16 +89,20 @@
 
   {#if isHost && (!play || over)}
     <div class="deal" class:one={!stakeCfg}>
+      <fieldset class="turns">
+        <legend class="dim">{t('play.turnTime')}</legend>
+        {#each TURN_CHOICES as s (s)}
+          <label class="turn" class:on={turnSeconds === s}>
+            <input type="radio" name="turn-time" value={s} bind:group={turnSeconds} />
+            <span>{s === 0 ? t('play.turnTime.0') : t('play.turnTime.m', { n: s / 60 })}</span>
+          </label>
+        {/each}
+      </fieldset>
       {#if stakeCfg}
         <label class="f"><span class="dim">{t(stakeCfg.label)}</span>
           <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="8" bind:value={stakeText} />
         </label>
       {/if}
-      <label class="f"><span class="dim">{t('play.turnTime')}</span>
-        <select bind:value={turnSeconds}>
-          {#each [0, 20, 30, 60] as s (s)}<option value={s}>{s === 0 ? t('play.turnTime.0') : t('play.turnTime.s', { n: s })}</option>{/each}
-        </select>
-      </label>
       <button type="button" class="primary" disabled={stake < 1} onclick={deal}>{t(play ? 'play.dealNext' : 'play.deal')}</button>
     </div>
   {:else if !play}
@@ -106,17 +114,18 @@
 
 <style>
   .pt { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
-  .timer { position: relative; align-self: center; flex: none; width: 64px; height: 64px; display: grid; place-items: center; color: var(--accent); }
-  .timer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); fill: none; stroke-width: 4; }
-  .timer-track { stroke: currentColor; opacity: .18; }
-  .timer-ring { stroke: currentColor; stroke-linecap: round; transition: stroke-dashoffset 100ms linear; }
-  .timer-number { font-family: var(--font-ui); font-size: 1.35rem; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+  .timer { position: relative; align-self: center; flex: none; width: 92px; height: 92px; display: grid; place-items: center; color: var(--accent); border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--bg) 85%, transparent) 55%, transparent 72%); filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 45%, transparent)); }
+  .timer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); fill: none; stroke-width: 6; }
+  .timer-track { stroke: currentColor; opacity: .2; }
+  .timer-ring { stroke: currentColor; stroke-linecap: round; transition: stroke-dashoffset 100ms linear, stroke 300ms; }
+  .timer-number { font-family: var(--font-display, var(--font-ui)); font-size: 1.6rem; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+  .timer.warn { color: var(--warn); }
   .timer.low { color: var(--neg); animation: timer-pulse 1s ease-in-out infinite; }
   .timer.low .timer-number { color: currentColor; }
-  @keyframes timer-pulse { 50% { filter: drop-shadow(0 0 5px currentColor); } }
+  @keyframes timer-pulse { 50% { transform: scale(1.08); filter: drop-shadow(0 0 12px currentColor); } }
   @media (max-height: 700px) {
-    .timer { width: 52px; height: 52px; }
-    .timer-number { font-size: 1.1rem; }
+    .timer { width: 72px; height: 72px; }
+    .timer-number { font-size: 1.25rem; }
   }
   @media (prefers-reduced-motion: reduce) {
     .timer.low { animation: none; }
@@ -127,8 +136,16 @@
   .lasthead { display: flex; justify-content: space-between; align-items: center; }
   .deal { flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; align-items: end; }
   .deal.one { grid-template-columns: 1fr; }
-  .deal button { grid-column: 1 / -1; }
+  .deal.one button { grid-column: 1 / -1; }
+  .turns { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 0; padding: 0; border: 0; min-width: 0; }
+  .turns legend { font-size: .75rem; padding: 0; margin-bottom: 2px; }
+  .turn { position: relative; display: grid; place-items: center; min-height: 44px; padding: 0 4px; border: 1px solid var(--line); margin-left: -1px; font-size: .85rem; font-weight: 600; text-align: center; cursor: pointer; color: var(--text); }
+  .turn:first-of-type { margin-left: 0; border-radius: 12px 0 0 12px; }
+  .turn:last-of-type { border-radius: 0 12px 12px 0; }
+  .turn.on { z-index: 1; background: linear-gradient(180deg, var(--brass-soft), var(--brass)); border-color: var(--brass); color: #1d1608; }
+  .turn input { position: absolute; opacity: 0; inset: 0; margin: 0; width: 100%; height: 100%; min-height: 0; cursor: pointer; }
+  .turn:has(input:focus-visible) { outline: 3px solid var(--brass-soft); outline-offset: 2px; z-index: 2; }
   .f { display: flex; flex-direction: column; gap: 2px; font-size: .75rem; margin: 0; }
-  .f input, .f select { min-height: 44px; }
+  .f input { min-height: 44px; }
   .wait { margin: 0; text-align: center; }
 </style>

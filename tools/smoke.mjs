@@ -283,10 +283,10 @@ check('cross-origin socket is refused', crossOrigin === 403, String(crossOrigin)
   await solo.open;
   solo.join();
   let st = await latest(solo);
-  solo.send({ t: 'deal', stake: 10, turnSeconds: 1 }); // 1 second x 6 = 6 seconds to set
+  solo.send({ t: 'deal', stake: 10, turnSeconds: 6 }); // 6 seconds to set the whole hand
   st = await latest(solo, (m) => m.t === 'state' && m.play);
   check('everyone is pending at once and I only see my own 13 cards', st.play.pending.length === 4 && st.play.view.hand.length === 13 && st.play.view.reveal === undefined);
-  check('the time limit is six times the turn time', st.play.turnEndsAt - st.now > 4000 && st.play.turnEndsAt - st.now <= 6100, String(st.play.turnEndsAt - st.now));
+  check('the time limit is exactly the chosen turn time', st.play.turnEndsAt - st.now > 4000 && st.play.turnEndsAt - st.now <= 6100, String(st.play.turnEndsAt - st.now));
   const started = Date.now();
   while (st.play.toAct !== null) {
     st = await latest(solo, (m) => m.t === 'state');

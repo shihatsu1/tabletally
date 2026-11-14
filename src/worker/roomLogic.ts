@@ -435,10 +435,9 @@ function pendingOf(s: RoomState): string[] {
   return who ? [who] : [];
 }
 
-/** How long a human has: the host's per-turn time, longer in games where a whole hand is set at once. */
+/** How long a human has: exactly the host's time per turn (in Pusoy, the time to set the whole hand). */
 function turnLimitMs(s: RoomState): number {
-  const engine = getEngine(s.gameId);
-  return (s.play?.turnMs ?? 0) * (engine?.turnFactor ?? 1);
+  return s.play?.turnMs ?? 0;
 }
 
 /** Set (or clear) the computer-move time and the turn clock after anything changed the hand. */

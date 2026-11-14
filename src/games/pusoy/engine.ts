@@ -438,7 +438,6 @@ export const pusoyEngine: PlayEngine<PusoySetup, PsState, PsMove, PsView> = {
   toAct: (s) => (s.done ? null : (pendingOf(s)[0] ?? null)),
   pending: (s) => (s.done ? [] : pendingOf(s)),
   simultaneous: true,
-  turnFactor: 6,
   validate,
   apply,
   viewFor,

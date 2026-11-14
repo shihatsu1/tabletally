@@ -28,6 +28,7 @@
   --accent: var(--brass-soft);
   --pos: var(--mint);
   --neg: #ff967a;
+  --warn: #ffc861;
   --radius: 14px;
   --font-display: 'Fraunces Variable', 'Iowan Old Style', Georgia, serif;
   --font-ui: 'Bricolage Grotesque Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -54,6 +55,7 @@
     --accent: #7a5a12;
     --pos: #0b6b3f;
     --neg: #b23a1a;
+    --warn: #9a5b00;
     --sign-shadow: 2px 2px 0 color-mix(in srgb, #8a6a1f 35%, transparent);
     color-scheme: light;
   }

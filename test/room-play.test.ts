@@ -419,9 +419,9 @@ describe('Pusoy in the app (everyone sets in secret, at the same time)', () => {
     expect(playEnvelope(d, 'p1')!.pending).not.toContain('p1');
   });
 
-  it('the shared time limit is six times the turn time, and when it runs out every human still pending gets the safe set', () => {
+  it('the shared time limit is the chosen turn time, and when it runs out every human still pending gets the safe set', () => {
     let d = pusoyRoom(['easy', 'easy'], 2);
-    d = ok(applyMessage(d, host(d), { t: 'deal', stake: 10, turnSeconds: 20 }, T0 + 10, 5));
+    d = ok(applyMessage(d, host(d), { t: 'deal', stake: 10, turnSeconds: 120 }, T0 + 10, 5));
     const started = d.play!.turnStartedAt!;
     expect(playEnvelope(d, 'p1')!.turnEndsAt).toBe(started + 120_000);
     expect(wakeAt(d)).toBe(Math.min(d.play!.botAt!, started + 120_000));

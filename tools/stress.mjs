@@ -96,9 +96,9 @@ async function runRoom(i) {
   }
   const handsTarget = gameId === 'poker' ? 3 : 2;
   for (let hand = 1; hand <= handsTarget; hand++) {
-    // turnSeconds 1 gives 1s (poker/others) or 6s (pusoy) so idle humans are timed out quickly; 0 only when humans always move
+    // short limits (6s for pusoy, which sets a whole hand at once) so idle humans are timed out quickly; 0 only when humans always move
     const needsLimit = gameId === 'pusoy' || humansWanted > 0;
-    const turnSeconds = gameId === 'pusoy' ? 1 : needsLimit ? pick([2, 3, 20]) : 0;
+    const turnSeconds = gameId === 'pusoy' ? 6 : needsLimit ? pick([2, 3, 20]) : 0;
     const t0 = Date.now();
     me.send({ t: 'deal', stake: 5, turnSeconds });
     // chaos while the hand runs
