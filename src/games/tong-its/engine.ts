@@ -70,7 +70,7 @@ export function meldsContaining(hand: readonly Card[], card: Card): Card[][] {
   return out;
 }
 
-export const handPoints = (cards: readonly Card[]): number => cards.reduce((a, c) => a + pointsOf(c), 0);
+export const handPoints = (cards: readonly Card[]): number => bestDeadwood(cards);
 
 // ------------------------------------------------------------------ state
 

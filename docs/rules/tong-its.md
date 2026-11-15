@@ -14,6 +14,7 @@ How TableTally plays and scores Tong-its. The app deals, checks every move and r
 - A run grows at either end; a set only up to four.
 - A four of a kind may be shown face down as a **secret**: the others see only that it exists. It counts as having shown a meld, and nothing can be added to it.
 - Card points for comparing hands: A = 1, 2 to 10 face value, J, Q, K = 10. Lower is better.
+- Valid melds still held in a player's hand do not count toward their total; the best non-overlapping grouping is used.
 
 ## A turn
 

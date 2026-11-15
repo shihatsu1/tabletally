@@ -278,6 +278,31 @@ describe('how a hand ends', () => {
     expect(handPoints(s.hands.B!)).toBe(2);
   });
 
+  it('excludes held melds when resolving a challenge, including ties', () => {
+    const melds = [
+      { id: 1, owner: 'A', kind: 'set' as const, cards: [C('S', 2), C('H', 2), C('D', 2)], hidden: false },
+      { id: 2, owner: 'B', kind: 'set' as const, cards: [C('S', 3), C('H', 3), C('D', 3)], hidden: false },
+    ];
+    const run = (loose: number) => {
+      let s = base({ hands: { A: [C('S', 9), C('H', 9), C('D', 9), C('S', loose)], B: [C('H', 5)], C: [C('S', 12)] }, melds });
+      s = ok(s, 'A', { t: 'fight' });
+      return ok(s, 'B', { t: 'respond', challenge: true });
+    };
+    expect(run(4).end?.winner).toBe('A');
+    expect(run(5).end?.winner).toBe('B');
+  });
+
+  it('excludes held runs at stock out and avoids counting overlapping melds twice', () => {
+    const melds = [
+      { id: 1, owner: 'A', kind: 'set' as const, cards: [C('S', 2), C('H', 2), C('D', 2)], hidden: false },
+      { id: 2, owner: 'B', kind: 'set' as const, cards: [C('S', 3), C('H', 3), C('D', 3)], hidden: false },
+    ];
+    let s = base({ hands: { A: [C('S', 7), C('S', 8), C('S', 9), C('H', 4), C('C', 10)], B: [C('H', 5)], C: [C('S', 12)] }, melds, stockOut: true, phase: 'play', drew: 'stock' });
+    s = ok(s, 'A', { t: 'discard', card: C('C', 10) });
+    expect(s.end?.winner).toBe('A');
+    expect(handPoints([C('S', 5), C('H', 5), C('D', 5), C('S', 6), C('S', 7)])).toBe(10);
+  });
+
   it('the pot goes to a player who wins two deals in a row, and counts the deals since it was emptied', () => {
     const f = (input: Record<string, unknown>, history: unknown[]) => E.finalize(input, setup, history);
     const win = (w: string, potDeals?: number) => ({ winner: w, ending: 'normal', stake: 1, ...(potDeals ? { potDeals } : {}) });
