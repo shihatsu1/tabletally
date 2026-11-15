@@ -43,11 +43,9 @@
   </div>
 
   {#each ['tongitsMode', 'challengeMode'] as const as key (key)}
-    <label for="m-{key}">{t(`tong.m.${key}`)}</label>
-    <select id="m-{key}" value={setup[key]} onchange={(e) => setMode(key, e.currentTarget.value as Mode)}>
-      <option value="replace">{t('tong.mode.replace')}</option>
-      <option value="add">{t('tong.mode.add')}</option>
-    </select>
+    <fieldset><legend>{t(`tong.m.${key}`)}</legend>
+      {#each ['replace', 'add'] as mode}<button type="button" class="ghost" aria-pressed={setup[key] === mode} onclick={() => setMode(key, mode as Mode)}>{t(`tong.mode.${mode}`)}</button>{/each}
+    </fieldset>
   {/each}
 </details>
 

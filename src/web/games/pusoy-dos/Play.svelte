@@ -103,4 +103,12 @@
   .rvfan { flex: 1; height: 58px; }
   .row { display: flex; gap: 8px; }
   .row button { flex: 1; }
+  @media (orientation: landscape) and (max-height: 460px) {
+    .pd { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; gap: 3px 8px; }
+    .status { grid-column: 1 / -1; padding: 2px 6px; }
+    .mat { grid-column: 1; grid-row: 2 / 4; min-height: 0; }
+    .hand { grid-column: 2; grid-row: 2; min-height: 0; }
+    .row { grid-column: 2; grid-row: 3; }
+    .reveal { grid-column: 1; grid-row: 2; overflow: hidden; }
+  }
 </style>

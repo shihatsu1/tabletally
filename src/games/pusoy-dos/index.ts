@@ -25,6 +25,7 @@ export interface Tier {
 }
 
 export interface PusoyDosSetup {
+  scoringVersion?: 2;
   scoring: Scoring;
   /** What the number of 2s in the winner's final play does to the payment. */
   deuce: DeuceMode;
@@ -112,6 +113,7 @@ export const pusoyDos: GameModule<PusoyDosSetup, PusoyDosInput> = {
   playerCounts: [2, 3, 4],
 
   defaultSetup: (playerCount) => ({
+    scoringVersion: 2,
     scoring: 'winner-take-all',
     deuce: 'off',
     settlement: 'winner-only',
@@ -230,13 +232,13 @@ export const pusoyDos: GameModule<PusoyDosSetup, PusoyDosInput> = {
       const s: Record<string, number> = {};
       let sum = 0;
       for (const id of players) {
-        s[id] = id === input.winner ? 0 : penalty(setup.tiers, left[id] ?? 0, setup.startingHand);
+        s[id] = id === input.winner ? 0 : setup.scoringVersion === 2 ? 1 + (left[id] ?? 0) : penalty(setup.tiers, left[id] ?? 0, setup.startingHand);
         sum += s[id] as number;
       }
       const unit = input.stake * mult;
       for (const id of players) {
         const mine = s[id] as number;
-        if (setup.settlement === 'pairwise') net[id] = unit * (sum - n * mine);
+        if (setup.scoringVersion !== 2 && setup.settlement === 'pairwise') net[id] = unit * (sum - n * mine);
         else net[id] = id === input.winner ? unit * sum : 0 - unit * mine;
       }
     }

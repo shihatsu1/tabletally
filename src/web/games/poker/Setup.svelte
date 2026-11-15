@@ -22,17 +22,8 @@
 
 <p class="dim note">{t('poker.optHelp')}</p>
 
-<div class="grid">
-  <div>
-    <label for="p-chips">{t('poker.opt.chips')}</label>
-    <input id="p-chips" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" value={String(setup.chips)} onchange={(e) => patch({ chips: num(e.currentTarget, 1, MAX_CHIPS) })} />
-  </div>
-  <div>
-    <label for="p-units">{t('poker.opt.units')}</label>
-    <input id="p-units" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" value={String(setup.moneyUnits)} onchange={(e) => patch({ moneyUnits: num(e.currentTarget, 1, MAX_CHIPS) })} />
-  </div>
-</div>
-<p class="dim note">{t('poker.opt.ratioLine', { chips: setup.chips, units: setup.moneyUnits })}</p>
+<label for="p-units">{t('poker.opt.units')}</label>
+<input id="p-units" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" value={String(setup.moneyUnits)} onchange={(e) => patch({ chips: 1, moneyUnits: num(e.currentTarget, 1, MAX_CHIPS) })} />
 
 <label for="p-buyin">{t('poker.opt.buyIn')}</label>
 <input id="p-buyin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="10" value={String(setup.buyIn)} onchange={(e) => patch({ buyIn: num(e.currentTarget, 1, MAX_CHIPS) })} />

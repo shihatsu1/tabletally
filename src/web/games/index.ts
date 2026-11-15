@@ -1,4 +1,4 @@
-import type { Component } from 'svelte';
+import type { Component, Snippet } from 'svelte';
 import type { PublicRound } from '../../shared/protocol';
 import { analyze as analyzePusoy, type PusoyInput, type PusoySetup } from '../../games/pusoy';
 import { deuceMultiplier, type PusoyDosInput, type PusoyDosSetup, type Tier } from '../../games/pusoy-dos';
@@ -7,7 +7,7 @@ import type { TongItsInput, TongItsSetup } from '../../games/tong-its';
 import type { PkMove, PkView } from '../../games/poker/engine';
 import type { PsMove, PsView } from '../../games/pusoy/engine';
 import type { PdMove, PdView } from '../../games/pusoy-dos/engine';
-import type { TiMove, TiView } from '../../games/tong-its/engine';
+import { handPoints, type TiMove, type TiView } from '../../games/tong-its/engine';
 import type { RoomView } from '../../shared/protocol';
 import PokerPlay from './poker/Play.svelte';
 import PokerSetupUi from './poker/Setup.svelte';
@@ -42,6 +42,7 @@ const countSeat = (view: unknown, id: string): SeatInfo | null => {
 /** Props every game's Play screen takes. */
 export interface PlayProps<View, Move> {
   view: View;
+  timer?: Snippet;
   /** The hand's stake (only some games show it). */
   stake?: number;
   nameOf: (id: string) => string;
@@ -148,7 +149,7 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
       const s = setupRaw as PusoyDosSetup;
       const lines: string[] = [t(`rules.${s.scoring}`)];
       if (s.scoring === 'cards-left') {
-        lines.push(t('rules.tiers', { tiers: tierText(s.tiers, s.startingHand) }));
+        lines.push(s.scoringVersion === 2 ? t('rules.dos.fixedPenalty') : t('rules.tiers', { tiers: tierText(s.tiers, s.startingHand) }));
         lines.push(t(`rules.settlement.${s.settlement}`));
       }
       if (s.scoring === 'placement') lines.push(t('rules.points', { points: s.placementPoints.join(' / ') }));
@@ -161,7 +162,10 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
     Setup: TongSetup,
     Play: TongPlay,
     stake: { label: 'tong.stake', start: 10 },
-    seat: countSeat,
+    seat(view, id, t) {
+      const cards = view.done ? view.hands?.[id] : undefined;
+      return cards ? { text: t('tong.play.points', { n: handPoints(cards) }) } : countSeat(view, id);
+    },
     Status: TongStatus,
     describe(round, _setup, nameOf, t) {
       const i = round.input as TongItsInput;
@@ -247,8 +251,8 @@ export const gameUis: Readonly<Record<string, GameUi>> = {
     },
     rules(setupRaw, t) {
       const s = setupRaw as PusoySetup;
-      const lines = [t('rules.pusoy.intro'), t('rules.pusoy.rows')];
-      lines.push(t('rules.pusoy.system', { maj: s.majorityBonus, scoop: s.scoopBonus }));
+      const lines = [t('rules.pusoy.intro'), ...(s.system === 'fixed' ? [] : [t('rules.pusoy.rows')])];
+      lines.push(s.system === 'fixed' ? t('rules.pusoy.fixed') : t('rules.pusoy.system', { maj: s.majorityBonus, scoop: s.scoopBonus }));
       if (s.royalties) lines.push(t(s.royaltyMode === 'all' ? 'rules.pusoy.royalties.all' : 'rules.pusoy.royalties.onwin'));
       if (s.naturals) lines.push(t('rules.pusoy.naturals'));
       lines.push(t('rules.vary'));

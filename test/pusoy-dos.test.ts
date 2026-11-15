@@ -16,7 +16,7 @@ const P3 = ['A', 'B', 'C'];
 const P2 = ['A', 'B'];
 
 function setup(over: Partial<PusoyDosSetup> = {}, n = 4): PusoyDosSetup {
-  return { ...game.defaultSetup(n), ...over };
+  return { ...game.defaultSetup(n), scoringVersion: undefined, ...over };
 }
 const sum = (net: Record<string, number>) => Object.values(net).reduce((a, b) => a + b, 0);
 const run = (s: PusoyDosSetup, players: string[], input: PusoyDosInput) => {
@@ -288,5 +288,12 @@ describe('17-card hands (three players): the top tier still means "never played 
     const base = game.defaultSetup(4);
     expect(game.validateSetup({ ...base, startingHand: 17 }, 4).length).toBeGreaterThan(0);
     expect(game.validateSetup({ ...game.defaultSetup(3), startingHand: 17 }, 3)).toEqual([]);
+  });
+});
+
+describe('fixed winner scoring', () => {
+  it('adds a flat card penalty to the base win and scales both', () => {
+    const s = { ...game.defaultSetup(3), scoring: 'cards-left' as const, scoringVersion: 2 as const };
+    expect(run(s, P3, { winner: 'A', stake: 5, cardsLeft: { B: 4, C: 2 } })).toEqual({ A: 40, B: -25, C: -15 });
   });
 });

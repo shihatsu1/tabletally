@@ -131,9 +131,9 @@ describe('naturals', () => {
     expect(NATURAL_KEYS.every((k) => Number.isInteger(defaultSetup().natural[k]))).toBe(true);
   });
 
-  it('the table defaults are 2-4, royalties on, and the Philippine naturals (dragon 13, three kinds worth 3)', () => {
+  it('the table defaults are fixed, royalties on, and the Philippine naturals (dragon 13, three kinds worth 3)', () => {
     const d = defaultSetup();
-    expect(d).toMatchObject({ system: '2-4', majorityBonus: 1, scoopBonus: 0, foul: 'scoop', royalties: true, royaltyPreset: 'classic', naturals: true });
+    expect(d).toMatchObject({ system: 'fixed', majorityBonus: 0, scoopBonus: 0, foul: 'scoop', royalties: true, royaltyPreset: 'classic', naturals: true });
     expect(d.natural).toMatchObject({ dragon: 13, sixPairs: 3, threeStraights: 3, threeFlushes: 3, pureDragon: 0 });
     // a dragon sweeps the table: 13 from each of the 3 opponents
     expect(run(d, ['A', 'B', 'C', 'D'], { stake: 1, rows: rows([['B', 'C', 'D']], [['B', 'C', 'D']], [['B', 'C', 'D']]), naturals: { A: 'dragon' } })).toEqual({ A: 39, B: -13, C: -13, D: -13 });
@@ -267,5 +267,15 @@ describe('hardening (from code review)', () => {
     const net = run(sys('1-6'), ['__proto__', 'B'], { stake: 1, rows: rows([['__proto__'], ['B']], [['__proto__'], ['B']], [['__proto__'], ['B']]) });
     expect(Object.entries(net).map(([k, v]) => [k, v])).toEqual([['__proto__', 6], ['B', -6]]);
     expect(Object.values(net).reduce((a, b) => a + b, 0)).toBe(0);
+  });
+});
+
+describe('fixed table scoring', () => {
+  it('pays one for a majority, two for a scoop and scales with stake', () => {
+    const s = { ...defaultSetup(), royalties: false, naturals: false };
+    const majority = rows([['A'], ['B']], [['A'], ['B']], [['B'], ['A']]);
+    const scoop = rows([['A'], ['B']], [['A'], ['B']], [['A'], ['B']]);
+    expect(run(s, ['A', 'B'], { stake: 5, rows: majority })).toEqual({ A: 5, B: -5 });
+    expect(run(s, ['A', 'B'], { stake: 5, rows: scoop })).toEqual({ A: 10, B: -10 });
   });
 });

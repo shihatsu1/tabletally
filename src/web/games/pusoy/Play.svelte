@@ -228,4 +228,9 @@
   .mini { flex: 1 1 0; min-height: 0; position: relative; }
   .mini > :global(.fan) { position: absolute; inset: 0; min-height: 0; }
   .nat { color: var(--brass-soft, var(--brass)); font-size: .85rem; }
+  @media (orientation: landscape) and (max-height: 460px) {
+    .ps { gap: 3px; }
+    .hand { min-height: 0; }
+    .reveal { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  }
 </style>

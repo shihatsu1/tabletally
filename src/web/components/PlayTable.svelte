@@ -69,6 +69,7 @@
 </script>
 
 <div class="pt">
+  {#snippet timer()}
   {#if secondsLeft !== null && !over}
     <div class="timer {urgency}" role="timer" aria-label={t('play.timeLeft', { t: clock })}>
       {#key deadline}
@@ -80,6 +81,8 @@
       <span class="timer-number" aria-hidden="true">{clock}</span>
     </div>
   {/if}
+  {/snippet}
+  {#if room.gameId !== 'tong-its'}{@render timer()}{/if}
   {#if canShowLast}<button type="button" class="ghost last" aria-expanded={showLast} onclick={() => (showLast = !showLast)}>{t('play.lastHand')}</button>{/if}
   {#if play?.unscored}<p class="error" role="alert">{t('play.unscored')}</p>{/if}
 
@@ -89,7 +92,7 @@
       <gameUi.Play view={lastDone.view} stake={lastDone.stake} {nameOf} {room} onmove={() => undefined} />
     </div>
   {:else if play && gameUi}
-    <gameUi.Play view={play.view} stake={play.stake} {nameOf} {room} onmove={(move: unknown) => send({ t: 'move', move })} />
+    <gameUi.Play timer={secondsLeft !== null && !over ? timer : undefined} view={play.view} stake={play.stake} {nameOf} {room} onmove={(move: unknown) => send({ t: 'move', move })} />
   {/if}
 
   {#if isHost && (!play || over)}
@@ -119,18 +122,18 @@
 
 <style>
   .pt { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
-  .timer { position: relative; align-self: center; flex: none; width: 92px; height: 92px; display: grid; place-items: center; color: var(--accent); border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--bg) 85%, transparent) 55%, transparent 72%); filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 45%, transparent)); }
+  .timer { position: absolute; top: 0; right: 0; z-index: 4; flex: none; width: 36px; height: 36px; display: grid; place-items: center; color: var(--accent); border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--bg) 85%, transparent) 55%, transparent 72%); filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 45%, transparent)); }
   .timer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); fill: none; stroke-width: 6; }
   .timer-track { stroke: currentColor; opacity: .2; }
   .timer-ring { stroke: currentColor; stroke-linecap: round; transition: stroke-dashoffset 100ms linear, stroke 300ms; }
-  .timer-number { font-family: var(--font-display, var(--font-ui)); font-size: 1.6rem; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+  .timer-number { font-family: var(--font-display, var(--font-ui)); font-size: .75rem; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
   .timer.warn { color: var(--warn); }
   .timer.low { color: var(--neg); animation: timer-pulse 1s ease-in-out infinite; }
   .timer.low .timer-number { color: currentColor; }
   @keyframes timer-pulse { 50% { transform: scale(1.08); filter: drop-shadow(0 0 12px currentColor); } }
   @media (max-height: 700px) {
-    .timer { width: 72px; height: 72px; }
-    .timer-number { font-size: 1.25rem; }
+    .timer { width: 36px; height: 36px; }
+    .timer-number { font-size: .75rem; }
   }
   @media (prefers-reduced-motion: reduce) {
     .timer.low { animation: none; }

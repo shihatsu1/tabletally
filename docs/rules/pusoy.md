@@ -20,9 +20,11 @@ Each row is compared with the same row of **every** other player: top with top, 
 
 ### Point systems
 
+New tables use a fixed system: each opponent pays 1 point for a net row win or 2 for a scoop; ties pay nothing. The legacy systems below remain available for existing tables.
+
 | System | Each row | Winning 2 or 3 rows | Scoop (all 3) |
 |---|---|---|---|
-| **2-4** (default) | +1 / -1 | +1 more | 3 + 1 = 4 |
+| **2-4** (legacy) | +1 / -1 | +1 more | 3 + 1 = 4 |
 | **1-6** | +1 / -1 | nothing | 3 + 3 = 6 |
 
 Both bonuses can be changed by the host. The units are multiplied by the stake.

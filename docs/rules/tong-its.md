@@ -58,7 +58,7 @@ Every amount is a host option before the first hand. The app offers one preset, 
 
 ### The pot
 
-There is always a pot. Before every deal each player puts in the ante (2 chips by default, at least 1). A player who wins two deals in a row takes the pot, which holds one ante from each player for every deal since it was last taken. In the ledger this is recorded as each loser paying the winner `ante x deals` in that hand, so totals always add to zero and nothing is held.
+There is always a pot. Before every deal each player puts in the ante (1 chip by default, at least 1). A player who wins two deals in a row takes the pot, which holds one ante from each player for every deal since it was last taken. In the ledger this is recorded as each loser paying the winner `ante x deals` in that hand, so totals always add to zero and nothing is held.
 
 ### Worked examples (Pagat amounts, stake 1)
 

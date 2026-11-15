@@ -75,7 +75,7 @@
   .strip { position: relative; z-index: 6; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
   .seat { position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'top top' 'live total'; align-items: center; column-gap: 4px; padding: 4px 6px; border-radius: 10px; background: rgba(5, 30, 23, .9); border: 1px solid color-mix(in srgb, var(--brass) 40%, transparent); min-width: 0; min-height: 50px; }
   .seat.mine { border-color: var(--brass); }
-  .seat.out { opacity: .55; }
+  .seat.out { border-style: dashed; }
   @media (max-width: 520px) { .strip.two { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .seat.turn { box-shadow: 0 0 0 2px var(--brass-soft, var(--brass)); animation: glow 1.4s ease-in-out infinite; }
   .top { grid-area: top; display: flex; align-items: center; gap: 3px; min-width: 0; }

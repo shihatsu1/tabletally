@@ -94,11 +94,10 @@
         <section class="card">
           <div class="row">
             <button type="button" class="ghost grow" aria-pressed={fx.sound} onclick={() => setSound(!fx.sound)}>{t('nav.sound')}: {t(fx.sound ? 'nav.on' : 'nav.off')}</button>
-            <label class="sr-only" for="ps-lang">{t('nav.language')}</label>
-            <select id="ps-lang" value={ui.lang} onchange={(e) => setLang(e.currentTarget.value === 'tl' ? 'tl' : 'en')}>
-              <option value="en">English</option>
-              <option value="tl">Filipino</option>
-            </select>
+            <div role="group" aria-label={t('nav.language')} class="row">
+              <button type="button" class="ghost" aria-pressed={ui.lang === 'en'} onclick={() => setLang('en')}>English</button>
+              <button type="button" class="ghost" aria-pressed={ui.lang === 'tl'} onclick={() => setLang('tl')}>Filipino</button>
+            </div>
             <a class="btn ghost" href="#/">{t('room.home')}</a>
           </div>
         </section>
@@ -134,6 +133,12 @@
     width: min(520px, 100vw); box-sizing: border-box; height: 100dvh; overflow: hidden;
     display: flex; flex-direction: column; gap: 8px;
     padding: calc(env(safe-area-inset-top) + 6px) 10px calc(env(safe-area-inset-bottom) + 8px);
+  }
+  @media (orientation: landscape) and (max-height: 600px) {
+    .screen { width: 100vw; gap: 2px; padding: 2px 8px; }
+    .base { gap: 2px; }
+    header { min-height: 30px; }
+    .play { padding-top: 2px; }
   }
   .base { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
   header { display: flex; align-items: center; gap: 6px; min-height: 36px; }

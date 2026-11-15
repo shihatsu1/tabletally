@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import type { RoomView } from '../../../shared/protocol';
   import type { TongItsSetup } from '../../../games/tong-its';
   import { potContender, potDealsSince } from './pot';
@@ -10,6 +11,7 @@
   import HowToPlay from '../../components/HowToPlay.svelte';
 
   interface Props {
+    timer?: Snippet;
     view: TiView;
     /** Points per chip for this hand. */
     stake?: number;
@@ -17,7 +19,7 @@
     onmove: (move: TiMove) => void;
     room?: RoomView;
   }
-  let { view, stake = 1, nameOf, onmove, room }: Props = $props();
+  let { timer, view, stake = 1, nameOf, onmove, room }: Props = $props();
 
   // The pot on the table: one ante from each player for every deal since it was last collected, this deal included.
   // Only while the hand is on: once it is over the room history already holds it (and "Last hand" is an old view).
@@ -136,7 +138,7 @@
       }
       return lines;
     };
-    for (let cw = 44; cw > 14; cw -= 2) {
+    for (let cw = 52; cw > 14; cw -= 2) {
       const n = linesAt(cw);
       if (n * cw * 1.4536 + (n - 1) * 3 <= budget) return cw;
     }
@@ -196,6 +198,7 @@
   {/if}
   <div class="status" class:mine={myTurn} aria-live="polite">
     <span class="msg">{#if myTurn}<strong>{t('play.yourTurn')}</strong>{#if status} · {/if}{/if}{status}</span>
+    {#if timer}<span class="turn-timer">{@render timer()}</span>{/if}
     <HowToPlay small title={t('play.howTo')} items={RULES.map((k) => t(k))} />
   </div>
 
@@ -261,7 +264,7 @@
   {#if view.done && view.hands}
     <div class="reveal">
       {#each view.players.filter((id) => id !== me) as id (id)}
-        <div class="rv"><span class="dim small who">{nameOf(id)}</span><div class="rvfan"><CardFan cards={[...(view.hands[id] ?? [])].sort(byRank)} spread={0} maxW={40} label={nameOf(id)} /></div><span class="card-count">{t('play.cardsLeft', { n: view.hands[id]?.length ?? 0 })}</span></div>
+        <div class="rv"><span class="dim small who">{nameOf(id)}</span><div class="rvfan"><CardFan cards={[...(view.hands[id] ?? [])].sort(byRank)} spread={0} maxW={40} label={nameOf(id)} /></div><span class="card-count">{t('tong.play.points', { n: bestDeadwood(view.hands[id] ?? []) })}</span></div>
       {/each}
     </div>
   {/if}
@@ -277,10 +280,10 @@
           </span>
         {/each}
         {#if loose.length > 0}<button type="button" class="chip again" onclick={() => (loose = [])}>{t('tong.play.regroup')}</button>{/if}
-        {#if points !== null}<span class="points" aria-live="polite">{t('tong.play.points', { n: points })}</span>{/if}
+        {#if points !== null}<span class="points" aria-live="polite"><span class="sr-only">{t('tong.play.points', { n: points })}</span><span aria-hidden="true">{points}</span></span>{/if}
       </div>
     {/if}
-    <div class="hand"><CardFan cards={held.cards} gaps={held.gaps} selected={picked} hinted={useWith} onpick={toggle} maxW={124} label={t('play.yourHand')} />{#if view.done}<span class="card-count own-count">{t('play.cardsLeft', { n: view.hand.length })}</span>{/if}</div>
+    <div class="hand"><CardFan cards={held.cards} gaps={held.gaps} selected={picked} hinted={useWith} onpick={toggle} maxW={124} label={t('play.yourHand')} />{#if view.done}<span class="card-count own-count">{t('tong.play.points', { n: bestDeadwood(view.hand) })}</span>{/if}</div>
 
     {#if myTurn && view.phase === 'draw' && choosing}
       <div class="row">
@@ -307,6 +310,7 @@
 </div>
 
 <style>
+  .turn-timer { position: relative; width: 36px; height: 36px; flex: none; }
   .status { display: flex; align-items: center; gap: 6px; }
   .status .msg { flex: 1; min-width: 0; }
   .ti { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
@@ -372,4 +376,13 @@
   .own-count { position: absolute; right: 0; top: 0; }
   .row { display: flex; gap: 6px; }
   .row button { flex: 1; padding-inline: .4em; font-size: .9rem; }
+  @media (orientation: landscape) and (max-height: 460px) {
+    .ti { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 3px 8px; }
+    .status { grid-column: 1 / -1; padding: 2px 6px; }
+    .mat { grid-column: 1; grid-row: 2 / 5; }
+    .helper { grid-column: 2; grid-row: 2; align-self: start; }
+    .hand { grid-column: 2; grid-row: 3; min-height: 60px; height: 100%; }
+    .row { grid-column: 2; grid-row: 4; }
+    .reveal { grid-column: 2; grid-row: 2; overflow: hidden; }
+  }
 </style>

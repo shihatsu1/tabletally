@@ -9,7 +9,7 @@ import { chromium } from 'playwright-core';
 const require = createRequire(import.meta.url);
 const AXE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 const base = process.argv[2] ?? 'http://localhost:8787';
-const PHONES = [{ width: 375, height: 667 }, { width: 390, height: 844 }];
+const PHONES = [{ width: 375, height: 667 }, { width: 390, height: 844 }, { width: 667, height: 375 }, { width: 568, height: 320 }];
 const GAMES = [['pusoy-dos', 4], ['tong-its', 3], ['pusoy', 4], ['poker', 4]];
 
 let failures = 0;
@@ -42,7 +42,7 @@ async function axe(page) {
   await page.addScriptTag({ content: AXE });
   return page.evaluate(async () => {
     const r = await window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'] }, rules: { 'target-size': { enabled: false } } });
-    return r.violations.map((v) => `${v.id} x${v.nodes.length}`);
+    return r.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
   });
 }
 
@@ -64,16 +64,31 @@ try {
   }
 
   // 2. Every game at both phone sizes: deal, nothing scrolls, the hand is drawn, axe finds nothing.
+  const tables = new Map();
   for (const size of PHONES) {
     for (const [gameId, n] of GAMES) {
-      const { code, token: tok } = await createTable(gameId, n, Array(n - 1).fill('normal'));
+      if (!tables.has(gameId)) tables.set(gameId, await createTable(gameId, n, Array(n - 1).fill('normal')));
+      const { code, token: tok } = tables.get(gameId);
       const { ctx, page, errors } = await phone(browser, size, tok);
       await page.goto(`${base}/#/r/${code}`);
-      await page.getByRole('button', { name: /^Deal/ }).click();
+      const deal = page.getByRole('button', { name: /^Deal/ });
+      if (await deal.count()) await deal.click();
       await page.locator('[role="group"][aria-label="Your hand"], .holefan, .hand').first().waitFor({ timeout: 8000 });
       await page.waitForTimeout(600);
       const tag = `${gameId} at ${size.width}x${size.height}`;
       check(`${tag}: no scrolling while a hand is on`, await fits(page));
+      const clipped = await page.evaluate(() => [...document.querySelectorAll('.play button:not(:disabled):not(.card)')].filter((el) => {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return false;
+        let p = el.parentElement;
+        while (p) {
+          const style = getComputedStyle(p), box = p.getBoundingClientRect();
+          if (/(hidden|clip)/.test(style.overflow + style.overflowX + style.overflowY) && (r.left < box.left - 1 || r.right > box.right + 1 || r.top < box.top - 1 || r.bottom > box.bottom + 1)) return true;
+          p = p.parentElement;
+        }
+        return r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight;
+      }).map((el) => el.getAttribute('aria-label') || el.textContent.trim()));
+      check(`${tag}: enabled actions are visible`, clipped.length === 0, clipped.join(', '));
       check(`${tag}: real card faces are drawn`, (await page.locator('.art').count()) >= 2);
       const v = await axe(page);
       check(`${tag}: no WCAG 2.2 AA violations (axe)`, v.length === 0, v.join(', '));

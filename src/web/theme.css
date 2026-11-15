@@ -120,6 +120,7 @@ label { display: block; font-size: var(--step--1); font-weight: 500; color: var(
   margin: 14px 0;
 }
 .dim { color: var(--text-dim); }
+button.ghost[aria-pressed='true'] { background: var(--brass); border-color: var(--brass); color: #1d1608; }
 .row { display: flex; gap: 10px; align-items: center; }
 .row.wrap { flex-wrap: wrap; }
 .grow { flex: 1; }

@@ -31,7 +31,7 @@ export const NATURAL_KEYS = [
 export type NaturalKey = (typeof NATURAL_KEYS)[number];
 
 export interface PusoySetup {
-  system: '1-6' | '2-4' | 'custom';
+  system: '1-6' | '2-4' | 'custom' | 'fixed';
   /** Extra units for winning 2 or 3 of the 3 rows against one opponent. */
   majorityBonus: number;
   /** Extra units for winning all 3 rows against one opponent (a scoop). */
@@ -101,7 +101,7 @@ export const SYSTEMS = {
 
 export function defaultSetup(): PusoySetup {
   return {
-    system: '2-4', ...SYSTEMS['2-4'],
+    system: 'fixed', majorityBonus: 0, scoopBonus: 0,
     foul: 'scoop', foulFlat: 3,
     royalties: true, royaltyPreset: 'classic', royaltyMode: 'all', royalty: { ...ROYALTY_PRESETS.classic },
     naturals: true, natural: { ...NATURAL_DEFAULTS },
@@ -160,7 +160,7 @@ export function analyze(setup: PusoySetup, players: readonly string[], input: Pu
     const pick = input.royalties?.[id]?.[row];
     return setup.royalties && pick ? setup.royalty[`${row}.${pick}` as RoyaltyKey] : 0;
   };
-  const foulUnits = setup.foul === 'flat' ? setup.foulFlat : 3 + setup.majorityBonus + setup.scoopBonus;
+  const foulUnits = setup.system === 'fixed' ? 2 : setup.foul === 'flat' ? setup.foulFlat : 3 + setup.majorityBonus + setup.scoopBonus;
 
   for (let a = 0; a < players.length; a++) {
     for (let b = a + 1; b < players.length; b++) {
@@ -190,6 +190,12 @@ export function analyze(setup: PusoySetup, players: readonly string[], input: Pu
       const ni = nat(i);
       const nj = nat(j);
       if (hasNat(i) || hasNat(j)) {
+        if (setup.system === 'fixed') {
+          for (const row of ROWS) {
+            if (!hasNat(i)) give(j, i, royaltyOf(i, row));
+            if (!hasNat(j)) give(i, j, royaltyOf(j, row));
+          }
+        }
         if (ni > nj) give(j, i, ni);
         else if (nj > ni) give(i, j, nj);
         record('natural');
@@ -217,7 +223,7 @@ export function analyze(setup: PusoySetup, players: readonly string[], input: Pu
           give(i, j, royaltyOf(j, row));
         }
       }
-      let u = won - lost;
+      let u = setup.system === 'fixed' ? (won === 3 ? 2 : lost === 3 ? -2 : Math.sign(won - lost)) : won - lost;
       if (won >= 2) u += setup.majorityBonus;
       if (lost >= 2) u -= setup.majorityBonus;
       if (won === 3) {
@@ -266,7 +272,7 @@ export const pusoy: GameModule<PusoySetup, PusoyInput> = {
   validateSetup(raw) {
     if (!isRecord(raw)) return ['options must be an object'];
     const problems: string[] = [];
-    if (!['1-6', '2-4', 'custom'].includes(raw.system as string)) problems.push('unknown point system');
+    if (!['1-6', '2-4', 'custom', 'fixed'].includes(raw.system as string)) problems.push('unknown point system');
     if (!isInt(raw.majorityBonus) || raw.majorityBonus < 0 || raw.majorityBonus > 20) problems.push('majority bonus must be 0 to 20');
     if (!isInt(raw.scoopBonus) || raw.scoopBonus < 0 || raw.scoopBonus > 20) problems.push('scoop bonus must be 0 to 20');
     if (!['scoop', 'flat'].includes(raw.foul as string)) problems.push('unknown foul rule');

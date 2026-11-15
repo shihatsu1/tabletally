@@ -80,41 +80,34 @@
   <label for="room-name">{t('home.roomName')}</label>
   <input id="room-name" bind:value={roomName} maxlength="40" required />
 
-  <label for="game">{t('home.game')}</label>
-  <select id="game" bind:value={gameId}>
-    {#each gameList as g (g.id)}<option value={g.id}>{t(`game.${g.id}`)}</option>{/each}
-  </select>
+  <fieldset class="opts"><legend>{t('home.game')}</legend><div class="row wrap">
+    {#each gameList as g (g.id)}<button type="button" class="ghost" aria-pressed={gameId === g.id} onclick={() => (gameId = g.id)}>{t(`game.${g.id}`)}</button>{/each}
+  </div></fieldset>
 
   <div class="row">
     <div class="grow">
-      <label for="count">{t('home.players')}</label>
-      <select id="count" bind:value={playerCount}>
-        {#each counts as c (c)}<option value={c}>{c}</option>{/each}
-      </select>
+      <fieldset class="opts"><legend>{t('home.players')}</legend><div class="row">
+        {#each counts as c (c)}<button type="button" class="ghost" aria-pressed={playerCount === c} onclick={() => (playerCount = c)}>{c}</button>{/each}
+      </div></fieldset>
     </div>
     <div class="grow">
       <label for="unit">{t('home.unit')}</label>
-      <input id="unit" bind:value={unit} maxlength="12" list="unit-list" required />
-      <datalist id="unit-list">
-        {#each ['pts', 'PHP', 'USD', 'JPY', 'TWD', 'KRW', 'EUR', 'SGD', 'AUD', 'CAD', 'GBP', 'AED', 'SAR'] as u (u)}<option value={u}></option>{/each}
-      </datalist>
+      <input id="unit" bind:value={unit} maxlength="12" required />
+
     </div>
   </div>
 
   <fieldset class="opts">
     <legend>{t('home.bots')}</legend>
     <div class="row">
-      <select id="bot-count" aria-label={t('home.bots')} value={String(botLevels.length)} onchange={(e) => setBotCount(Number.parseInt(e.currentTarget.value, 10))}>
-        {#each Array.from({ length: playerCount }, (_, i) => i) as n (n)}<option value={String(n)}>{n}</option>{/each}
-      </select>
+      {#each Array.from({ length: playerCount }, (_, i) => i) as n (n)}<button type="button" class="ghost" aria-label={`${t('home.bots')}: ${n}`} aria-pressed={botLevels.length === n} onclick={() => setBotCount(n)}>{n}</button>{/each}
       <button type="button" class="ghost" onclick={() => setBotCount(playerCount - 1)}>{t('home.bots.solo')}</button>
     </div>
     <p class="dim small">{t('home.bots.help')}</p>
     {#each botLevels as level, i (i)}
-      <label for="bot-{i}">{t('home.bots.level', { n: i + 1 })}</label>
-      <select id="bot-{i}" value={level} onchange={(e) => (botLevels[i] = e.currentTarget.value as BotLevel)}>
-        {#each levels as l (l)}<option value={l}>{t(`level.${l}`)}</option>{/each}
-      </select>
+      <fieldset class="opts"><legend>{t('home.bots.level', { n: i + 1 })}</legend><div class="row">
+        {#each levels as l (l)}<button type="button" class="ghost" aria-pressed={level === l} onclick={() => (botLevels[i] = l)}>{t(`level.${l}`)}</button>{/each}
+      </div></fieldset>
     {/each}
   </fieldset>
 

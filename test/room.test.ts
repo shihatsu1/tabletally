@@ -241,7 +241,7 @@ describe('room limits', () => {
 });
 
 describe('game options (setup)', () => {
-  const cardsLeft = (n = 4) => ({ ...(seated(n).setup as object), scoring: 'cards-left', settlement: 'pairwise' });
+  const cardsLeft = (n = 4) => ({ ...(seated(n).setup as object), scoringVersion: undefined, scoring: 'cards-left', settlement: 'pairwise' });
 
   it('the host can change options before the first hand; a guest cannot', () => {
     const s = seated();

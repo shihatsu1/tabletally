@@ -59,7 +59,7 @@ export interface TongItsInput {
 export const PRESETS: Readonly<Record<'tongits-go', TongItsSetup>> = {
   'tongits-go': {
     preset: 'tongits-go', winChips: 1, tongitsChips: 1, tongitsMode: 'add', challengeChips: 2, challengeMode: 'add',
-    burnedChips: 1, aceChips: 1, secretChips: 2, longRunChips: 0, sagasaChips: 1, potAnte: 2,
+    burnedChips: 1, aceChips: 1, secretChips: 2, longRunChips: 0, sagasaChips: 1, potAnte: 1,
   },
 };
 

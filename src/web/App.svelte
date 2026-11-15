@@ -24,11 +24,10 @@
   <nav class="row">
     <a class="grow brand" href="#/">TableTally</a>
     <button type="button" class="ghost tog" aria-pressed={fx.sound} onclick={() => setSound(!fx.sound)}>{t('nav.sound')}: {t(fx.sound ? 'nav.on' : 'nav.off')}</button>
-    <label class="sr-only" for="lang">{t('nav.language')}</label>
-    <select id="lang" value={ui.lang} onchange={(e) => setLang(e.currentTarget.value === 'tl' ? 'tl' : 'en')}>
-      <option value="en">English</option>
-      <option value="tl">Filipino</option>
-    </select>
+    <div role="group" aria-label={t('nav.language')} class="row">
+      <button type="button" class="ghost" aria-pressed={ui.lang === 'en'} onclick={() => setLang('en')}>English</button>
+      <button type="button" class="ghost" aria-pressed={ui.lang === 'tl'} onclick={() => setLang('tl')}>Filipino</button>
+    </div>
   </nav>
 
   {#if roomCode}
@@ -45,7 +44,6 @@
   nav { margin-top: 6px; }
   nav a { font-family: var(--font-display); font-variation-settings: 'SOFT' 100; color: var(--accent); text-decoration: none; font-weight: 800; font-size: var(--step-1); text-shadow: var(--sign-shadow); }
   .brand { display: inline-flex; align-items: center; min-height: 44px; }
-  nav select { width: auto; min-height: 44px; }
   nav { flex-wrap: wrap; }
   .tog { min-height: 44px; padding: .3em .8em; font-size: .85rem; }
   .tog[aria-pressed='true'] { border-color: var(--pos); color: var(--pos); }

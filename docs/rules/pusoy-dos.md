@@ -1,3 +1,5 @@
+> New tables use winner-takes-all: each loser pays 1 point, plus 1 per card left if the optional penalty is enabled. All payments are multiplied by the point value. Older tables keep their original rules.
+
 # Pusoy Dos (Filipino Big Two)
 
 How TableTally plays and scores Pusoy Dos. The app deals, checks every play and records each hand; this page is the reference for what it does. Choices we made where sources disagree are marked **house choice**, and questions still open are listed at the end.
