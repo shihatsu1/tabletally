@@ -38,6 +38,12 @@ describe('melds', () => {
 });
 
 describe('dealing', () => {
+  it('gives the previous winner the opening turn and 13 cards', () => {
+    const previous = { ...E.start(setup, players, 5), phase: 'over' as const, end: { winner: 'B', ending: 'normal' as const } };
+    const next = E.start(setup, players, 5, previous);
+    expect(next.turn).toBe('B');
+    expect(next.hands.B).toHaveLength(13);
+  });
   it('deals 13 to the dealer and 12 to the others with a 15-card stock, deterministically', () => {
     const s = E.start(setup, players, 5);
     const sizes = players.map((id) => s.hands[id]!.length).sort();

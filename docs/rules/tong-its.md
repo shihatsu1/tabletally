@@ -5,7 +5,7 @@ How TableTally plays and scores Tong-its. The app deals, checks every move and r
 ## Players and deal
 
 - Exactly 3 players, one 52-card deck, no jokers [S1, S2].
-- The dealer gets 13 cards and opens by discarding; the others get 12; the remaining 15 cards are the stock. **House choice:** the dealer is picked at random each hand (Pagat has the previous winner deal [S1]).
+- The dealer gets 13 cards and opens by discarding; the others get 12; the remaining 15 cards are the stock. The first dealer is picked at random; after that, the previous hand's winner deals and plays first.
 
 ## Melds
 

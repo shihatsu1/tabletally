@@ -340,6 +340,22 @@ describe('Tong-its in the app', () => {
     return v.phase === 'fight' ? { t: 'respond', challenge: false } : v.phase === 'draw' ? { t: 'draw', from: 'stock' } : v.mustMeld !== null ? null : { t: 'discard', card: v.hand[0] };
   };
 
+  it('keeps the same deadline after drawing and starts a new one after discarding', () => {
+    let d = ok(applyMessage(tong(), host(tong()), { t: 'deal', stake: 1, turnSeconds: 30 }, T0 + 10, 7));
+    for (let i = 0; i < 40; i++) {
+      const v = playEnvelope(d, 'p1')!.view as TiView;
+      if (v.toAct === 'p1' && v.phase === 'draw') break;
+      d = v.toAct === 'p1' ? advancePlay(d, d.play!.turnStartedAt! + 30_000) : advancePlay(d, d.play!.botAt!);
+    }
+    const started = d.play!.turnStartedAt!;
+    d = ok(applyMessage(d, host(d), { t: 'move', move: { t: 'draw', from: 'stock' } }, started + 5000));
+    expect(d.play!.turnStartedAt).toBe(started);
+    const v = playEnvelope(d, 'p1')!.view as TiView;
+    d = ok(applyMessage(d, host(d), { t: 'move', move: { t: 'discard', card: v.hand[0] } }, started + 6000));
+    expect(playEnvelope(d, null)!.toAct).not.toBe('p1');
+    expect(d.play!.turnStartedAt).not.toBe(started);
+  });
+
   it('when a human runs out of time the whole turn is played for them: draw from the stock, then discard (no second clock)', () => {
     let d = tong();
     d = ok(applyMessage(d, host(d), { t: 'deal', stake: 1, turnSeconds: 30 }, T0 + 10, 7));

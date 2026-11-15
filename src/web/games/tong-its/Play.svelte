@@ -116,7 +116,7 @@
   const meldSize = $derived.by(() => {
     const budget = meldsH;
     const width = (m: TiView['melds'][number], cw: number): number =>
-      (m.cards.length === 0 ? 86 : cw * (1 + (m.cards.length - 1) * MELD_SHOW)) + (canAdd(m) ? 36 : 0);
+      m.cards.length === 0 ? 86 : cw * (1 + (m.cards.length - 1) * MELD_SHOW);
     // Lines the melds take at card width cw, wrapping exactly as the flex row does: each player's row starts with
     // the name (NAME_W), items are 8 px apart, and an item that does not fit starts a new full-width line.
     // A meld wider than the whole area can never fit, so that size is rejected.
@@ -136,11 +136,9 @@
       }
       return lines;
     };
-    // a line is as tall as its cards, or the 32 px + (lay off) button when that is taller
-    const anyAdd = view.melds.some(canAdd);
     for (let cw = 44; cw > 14; cw -= 2) {
       const n = linesAt(cw);
-      if (n * Math.max(cw * 1.4536, anyAdd ? 32 : 0) + (n - 1) * 3 <= budget) return cw;
+      if (n * cw * 1.4536 + (n - 1) * 3 <= budget) return cw;
     }
     return 14;
   });
@@ -245,13 +243,15 @@
         <div class="owner">
           <span class="dim small name">{nameOf(o.id)}</span>
           {#each o.melds as m (m.id)}
-            <span class="meld">
+            {#snippet meldCards()}
               {#if m.cards.length === 0}<span class="dim small">{t('tong.play.hiddenSet', { n: m.size })}</span>{/if}
               {#each m.cards as c (c)}<PlayingCard card={c} size={meldSize} />{/each}
-              {#if canAdd(m)}
-                <button type="button" class="add" aria-label={t('tong.play.layoff')} onclick={() => one !== null && send({ t: 'sapaw', meld: m.id, card: one })}>+</button>
-              {/if}
-            </span>
+            {/snippet}
+            {#if canAdd(m)}
+              <button type="button" class="meld target" aria-label={`${t('tong.play.layoff')}: ${nameOf(o.id)}, ${m.cards.map(short).join(' ')}`} onclick={() => one !== null && send({ t: 'sapaw', meld: m.id, card: one })}>{@render meldCards()}</button>
+            {:else}
+              <span class="meld">{@render meldCards()}</span>
+            {/if}
           {/each}
         </div>
       {/each}
@@ -362,7 +362,7 @@
   .meld { display: inline-flex; gap: 0; align-items: center; }
   /* each card covers most of the one before it, leaving its corner showing */
   .meld > :global(.card + .card) { margin-left: calc(var(--cw) * (var(--show) - 1)); }
-  .add { min-height: 0; width: 32px; height: 32px; padding: 0; border-radius: 50%; margin-left: 3px; font-weight: 800; }
+  .target { min-height: 0; padding: 0; border: 0; border-radius: 5px; background: transparent; outline: 3px solid var(--pos); outline-offset: 2px; cursor: pointer; }
   .small { font-size: .75rem; }
   .reveal { display: flex; flex-direction: column; gap: 2px; }
   .rv { display: flex; align-items: center; gap: 6px; }

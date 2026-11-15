@@ -443,16 +443,15 @@ function turnLimitMs(s: RoomState): number {
 }
 
 /** Set (or clear) the computer-move time and the turn clock after anything changed the hand. */
-function schedule(s: RoomState, now: number): RoomState {
+function schedule(s: RoomState, now: number, previousActor: string | null = null): RoomState {
   if (!s.play) return s;
   const engine = getEngine(s.gameId);
   const pending = pendingOf(s);
   const bots = pending.filter((id) => s.players.find((pl) => pl.id === id)?.bot);
   const humans = pending.length - bots.length;
   const botAt = bots.length > 0 ? now + BOT_MIN_MS + (mixSeed(s.play.seed, s.play.moves) % BOT_SPREAD_MS) : null;
-  // In turn-based games each move restarts the clock. When everyone acts at once they share one clock, which keeps
-  // running until all of them have acted.
-  const keep = engine?.simultaneous === true && s.play.turnStartedAt !== null;
+  // Simultaneous players share a clock; multi-move turns keep it until the acting player changes.
+  const keep = s.play.turnStartedAt !== null && (engine?.simultaneous === true || (engine?.finishTurnOnTimeout === true && previousActor !== null && previousActor === engine.toAct(s.play.state)));
   const turnStartedAt = humans > 0 && s.play.turnMs > 0 ? (keep ? s.play.turnStartedAt : now) : null;
   return { ...s, play: { ...s.play, botAt, turnStartedAt } };
 }
@@ -546,7 +545,7 @@ function playMove(s: RoomState, pid: string, move: unknown, now: number): Result
   let state: RoomState = { ...s, play: { ...s.play, state: next, moves: s.play.moves + 1, animationHistory: [...(s.play.animationHistory ?? []), { revision: s.play.moves + 1, before: s.play.state, after: next }].slice(-8) }, lastActivityAt: now };
 
   state = recordFinishedHand(s, state, now);
-  return { ok: true, value: schedule(state, now) };
+  return { ok: true, value: schedule(state, now, engine.toAct(s.play.state)) };
 }
 
 /**

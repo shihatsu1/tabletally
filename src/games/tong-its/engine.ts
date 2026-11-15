@@ -179,10 +179,11 @@ function pendingResponder(s: TiState): string | null {
   return null;
 }
 
-function start(_setup: TongItsSetup, players: readonly string[], seed: number | Rng): TiState {
+function start(_setup: TongItsSetup, players: readonly string[], seed: number | Rng, prev?: TiState | null): TiState {
   const rng = rngFrom(seed);
   const deck = shuffle(Array.from({ length: 52 }, (_, i) => i), rng);
-  const dealer = players[(rng() >>> 0) % players.length] as string;
+  const randomDealer = players[(rng() >>> 0) % players.length] as string;
+  const dealer = prev?.phase === 'over' && prev.end && players.includes(prev.end.winner) ? prev.end.winner : randomDealer;
   const hands: Record<string, Card[]> = {};
   let at = 0;
   for (const id of players) {

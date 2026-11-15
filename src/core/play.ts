@@ -16,8 +16,7 @@ export const BOT_LEVELS: readonly BotLevel[] = ['easy', 'normal', 'hard'];
 
 // Defaults are `any` so engines with different types can share one registry (engines.ts); each engine is typed.
 export interface PlayEngine<Setup = any, State = any, Move = any, View = any> {
-  /** Shuffle and deal. `players` is the seat order. `prev` is the previous hand's final state, for games whose
-   *  hands are linked (poker stacks and the dealer button carry over); null for the first hand. */
+  /** Shuffle and deal. `players` is the seat order. `prev` is the previous hand's final state, or null for the first hand. */
   /** `seed` is a number in tests (replayable) or the server's cryptographic source when dealing for real. */
   start(setup: Setup, players: readonly string[], seed: number | Rng, prev?: State | null): State;
   /** Player counts allowed when playing in the app (defaults to the game's own list). */
