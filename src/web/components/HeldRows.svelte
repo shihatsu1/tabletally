@@ -37,7 +37,7 @@
     const ch = cw * RATIO;
     const vstep = n > 1 ? Math.max(ch * MIN_SHOW, Math.min(ch * MAX_SHOW, (H - ch - 4) / (n - 1))) : 0;
     const top0 = H - ch - (n - 1) * vstep - 2;
-    return { cw, ch, step: cw * OVERLAP, vstep, top0, labelX: cw + (widest - 1) * cw * OVERLAP + 8 };
+    return { offset: Math.max(0, (W - (cw + (widest - 1) * cw * OVERLAP + (labels.length ? LABEL_W : 0))) / 2), cw, ch, step: cw * OVERLAP, vstep, top0, labelX: cw + (widest - 1) * cw * OVERLAP + 8 };
   });
 </script>
 
@@ -46,11 +46,11 @@
     {#each rows as row, ri (ri)}
       {@const y = layout.top0 + ri * layout.vstep}
       {#each row as c, i (c)}
-        <span class="slot" data-held-card={c} style="left: {i * layout.step}px; top: {y}px; z-index: {ri * 20 + i}">
+        <span class="slot" data-held-card={c} style="left: {layout.offset + i * layout.step}px; top: {y}px; z-index: {ri * 20 + i}">
           <PlayingCard card={c} size={layout.cw} selected={selected === c} onclick={onpick ? () => onpick(c) : undefined} />
         </span>
       {/each}
-      {#if labels[ri]}<span class="lab" style="left: {layout.labelX}px; top: {y + 2}px">{labels[ri]}</span>{/if}
+      {#if labels[ri]}<span class="lab" style="left: {layout.offset + layout.labelX}px; top: {y + 2}px">{labels[ri]}</span>{/if}
     {/each}
   {/if}
 </div>

@@ -368,6 +368,7 @@ const en: Record<string, string> = {
   'poker.fold': 'Fold',
   'poker.check': 'Check',
   'poker.call': 'Call {n}',
+  'poker.actionCall': 'Call',
   'poker.raise': 'Raise',
   'poker.bet': 'Bet',
   'poker.min': 'Min',
@@ -653,6 +654,7 @@ const tl: Record<string, string> = {
   'poker.fold': 'Fold',
   'poker.check': 'Check',
   'poker.call': 'Call {n}',
+  'poker.actionCall': 'Call',
   'poker.raise': 'Taasan',
   'poker.bet': 'Taya',
   'poker.min': 'Pinakamaliit',
@@ -886,9 +888,7 @@ const tl: Record<string, string> = {
 const dictionaries: Record<Lang, Record<string, string>> = { en, tl };
 
 function initialLang(): Lang {
-  const saved = getItem('tt.lang');
-  if (saved === 'en' || saved === 'tl') return saved;
-  return typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('fil') ? 'tl' : 'en';
+  return 'en';
 }
 
 export const ui = $state<{ lang: Lang }>({ lang: initialLang() });

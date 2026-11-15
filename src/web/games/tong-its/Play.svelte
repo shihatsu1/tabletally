@@ -52,7 +52,8 @@
   let pileOpen = $state(false);
   // Stock and discard cards shrink a little on narrow phones so the piles and the pot share one row.
   let winW = $state(400);
-  const pileSize = $derived(winW < 400 ? 42 : 50);
+  let winH = $state(800);
+  const pileSize = $derived(winW > winH && winH <= 600 ? 30 : winW < 400 ? 42 : 50);
   /**
    * Taking the top discard always lays its meld down at once. With only one way to meld it (two matching cards)
    * that happens on the tap; with more, you first tap the cards to meld it with, then Show meld.
@@ -116,7 +117,7 @@
   const canAdd = (m: TiView['melds'][number]): boolean =>
     myTurn && view.phase === 'play' && one !== null && !m.hidden && canSapaw(m.kind, m.cards, one) && allowed([one]);
   const meldSize = $derived.by(() => {
-    const budget = meldsH;
+    const budget = winW > winH && winH <= 600 ? Math.max(meldsH, 90) : meldsH;
     const width = (m: TiView['melds'][number], cw: number): number =>
       m.cards.length === 0 ? 86 : cw * (1 + (m.cards.length - 1) * MELD_SHOW);
     // Lines the melds take at card width cw, wrapping exactly as the flex row does: each player's row starts with
@@ -186,7 +187,7 @@
   const byOwner = $derived(view.players.map((id) => ({ id, melds: view.melds.filter((m) => m.owner === id) })).filter((o) => o.melds.length > 0));
 </script>
 
-<svelte:window bind:innerWidth={winW} onkeydown={(e) => e.key === 'Escape' && (pileOpen = false)} />
+<svelte:window bind:innerWidth={winW} bind:innerHeight={winH} onkeydown={(e) => e.key === 'Escape' && (pileOpen = false)} />
 <div class="ti">
   {#if pileOpen}
     <div class="pilelist" role="dialog" aria-label={t('tong.play.pileTitle', { n: view.discards.length })}>
@@ -241,7 +242,8 @@
         </span>
       {/if}
     </div>
-    <div class="melds" bind:clientWidth={meldsW} bind:clientHeight={meldsH} style="--show: {MELD_SHOW}">
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex: shown melds can scroll in landscape -->
+    <div class="melds" role="region" aria-label={t('tong.play.meld')} tabindex="0" bind:clientWidth={meldsW} bind:clientHeight={meldsH} style="--show: {MELD_SHOW}">
       {#each byOwner as o (o.id)}
         <div class="owner">
           <span class="dim small name">{nameOf(o.id)}</span>
@@ -271,7 +273,8 @@
 
   {#if me !== null}
     {#if !view.done && (held.melds.length > 0 || loose.length > 0 || points !== null)}
-      <div class="helper">
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex: the landscape region can scroll independently -->
+      <div class="helper" role="region" aria-label={t('play.yourHand')} tabindex="0">
         {#each held.melds as m (m.join('.'))}
           <span class="chip">
             <span class="chipcards">{#each m as c (c)}<PlayingCard card={c} size={22} />{/each}</span>
@@ -283,7 +286,7 @@
         {#if points !== null}<span class="points" aria-live="polite"><span class="sr-only">{t('tong.play.points', { n: points })}</span><span aria-hidden="true">{points}</span></span>{/if}
       </div>
     {/if}
-    <div class="hand"><CardFan cards={held.cards} gaps={held.gaps} selected={picked} hinted={useWith} onpick={toggle} maxW={124} label={t('play.yourHand')} />{#if view.done}<span class="card-count own-count">{t('tong.play.points', { n: bestDeadwood(view.hand) })}</span>{/if}</div>
+    <div class="hand"><CardFan cards={held.cards} spread={winW > winH && winH <= 600 ? 0 : undefined} gaps={held.gaps} selected={picked} hinted={useWith} onpick={toggle} maxW={124} label={t('play.yourHand')} />{#if view.done}<span class="card-count own-count">{t('tong.play.points', { n: bestDeadwood(view.hand) })}</span>{/if}</div>
 
     {#if myTurn && view.phase === 'draw' && choosing}
       <div class="row">
@@ -376,13 +379,17 @@
   .own-count { position: absolute; right: 0; top: 0; }
   .row { display: flex; gap: 6px; }
   .row button { flex: 1; padding-inline: .4em; font-size: .9rem; }
-  @media (orientation: landscape) and (max-height: 460px) {
-    .ti { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 3px 8px; }
+  @media (orientation: landscape) and (max-height: 600px) {
+    .ti { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) minmax(95px, 1.25fr) auto; gap: 2px 8px; }
     .status { grid-column: 1 / -1; padding: 2px 6px; }
-    .mat { grid-column: 1; grid-row: 2 / 5; }
-    .helper { grid-column: 2; grid-row: 2; align-self: start; }
-    .hand { grid-column: 2; grid-row: 3; min-height: 60px; height: 100%; }
-    .row { grid-column: 2; grid-row: 4; }
-    .reveal { grid-column: 2; grid-row: 2; overflow: hidden; }
+    .mat { position: relative; grid-column: 1 / -1; grid-row: 2; overflow: visible; flex-direction: row; align-items: stretch; pointer-events: none; }
+    .piles { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); gap: 5px; pointer-events: auto; }
+    .pile .small { display: none; }
+    .potbox { padding: 2px; max-width: 60px; }
+    .melds { flex: 0 1 28%; min-width: 0; overflow-y: auto; pointer-events: auto; }
+    .helper { grid-column: 2; grid-row: 2; margin-left: 45%; overflow-y: auto; align-content: start; }
+    .hand { grid-column: 1 / -1; grid-row: 3; min-height: 0; height: 100%; }
+    .row { grid-column: 1 / -1; grid-row: 4; }
+    .reveal { grid-column: 2; grid-row: 2; overflow-y: auto; }
   }
 </style>

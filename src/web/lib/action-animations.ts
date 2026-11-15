@@ -1,5 +1,5 @@
 /** Movements inferred exclusively from the two views the current viewer is allowed to see. */
-export interface Movement { from: string; to: string; card?: number | null; coin?: number; pulse?: boolean }
+export interface Movement { from: string; to: string; card?: number | null; coin?: number; pulse?: boolean; action?: 'fold' | 'check' | 'call' | 'bet' | 'raise' | 'allin' }
 type View = Record<string, any>;
 const seat = (id: string, you: string | null) => id === you ? 'hand' : `seat:${id}`;
 
@@ -31,6 +31,16 @@ export function movements(game: string, before: View, after: View): Movement[] {
     if (before.lead && !after.lead) out.push({ from: 'played', to: 'stock', card: null });
     if (!before.done && after.done) for (const id of players.filter(id => id !== you)) for (const card of after.hands?.[id] ?? []) out.push({ from: `seat:${id}`, to: 'reveal', card });
   } else if (game === 'poker') {
+    const actor = before.toAct as string | null;
+    const oldActor = actor ? before.seat[actor] : null;
+    const newActor = actor ? after.seat[actor] : null;
+    if (actor && oldActor && newActor) {
+      const winnings = (after.wins ?? []).filter((win: View) => win.id === actor).reduce((sum: number, win: View) => sum + win.amount, 0);
+      const paid = Math.max(0, oldActor.stack - newActor.stack + winnings);
+      const highest = Math.max(0, ...players.map(id => before.seat[id]?.bet ?? 0));
+      const action = !oldActor.folded && newActor.folded ? 'fold' : newActor.allIn || (paid > 0 && paid >= oldActor.stack) ? 'allin' : paid === 0 ? 'check' : oldActor.bet + paid > highest ? (highest === 0 ? 'bet' : 'raise') : 'call';
+      out.push({ from: `seat:${actor}`, to: `seat:${actor}`, action });
+    }
     for (const card of (after.board as number[]).slice(before.board.length)) out.push({ from: 'stock', to: 'board', card });
     for (const id of players) {
       const old = before.seat[id], next = after.seat[id];

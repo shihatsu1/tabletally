@@ -58,7 +58,8 @@
     <HowToPlay small title={t('play.howTo')} items={RULES.map((k) => t(k))} />
   </div>
 
-  <div class="felt">
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex: showdown results can scroll on short screens -->
+  <div class="felt" role="region" aria-label={t('poker.board')} tabindex="0">
     <div class="info">
       <span class="pot">{t('poker.pot')} <strong>{view.pot}</strong></span>
       <span class="dim small">{t(`poker.street.${view.street}`)} · {blindLine}</span>
@@ -156,12 +157,14 @@
   .quick button { flex: 1; min-height: 44px; padding-inline: .3em; }
   input[type='range'] { width: 100%; min-height: 44px; }
   /* a phone on its side: the table and your cards on the left, the actions on the right, so nothing is pushed off screen */
-  @media (max-height: 460px) and (min-width: 560px) {
-    .pk { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-auto-rows: min-content; gap: 6px 12px; align-items: start; }
-    .pk > .status { grid-column: 1 / -1; }
-    .pk > .felt { grid-column: 1; grid-row: 2; }
-    .pk > .hole { grid-column: 1; grid-row: 3; }
-    .pk > .row, .pk > .raise { grid-column: 2; grid-row: 2 / span 2; align-self: center; }
-    .pk > .hole { max-height: 130px; }
+  @media (orientation: landscape) and (max-height: 600px) {
+    .pk { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr) minmax(180px, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 4px 8px; align-items: stretch; }
+    .pk > .status { grid-column: 1 / -1; padding: 2px 6px; }
+    .pk > .felt { grid-column: 1; grid-row: 2; justify-content: center; overflow-y: auto; }
+    .pk > .hole { grid-column: 2; grid-row: 2; max-height: none; min-height: 0; }
+    .pk > .row, .pk > .raise { grid-column: 3; grid-row: 2; align-self: center; }
+    .pk > .row { flex-wrap: wrap; }
+    .raise { gap: 2px; }
+    .quick { flex-wrap: wrap; }
   }
 </style>

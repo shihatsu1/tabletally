@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import type { PlayEnvelope, RoomView } from '../../shared/protocol';
   import { movements, type Movement } from '../lib/action-animations';
+  import { t } from '../lib/i18n.svelte';
 
   interface Update { before: PlayEnvelope | null; after: PlayEnvelope; beforeRoom: RoomView; room: RoomView }
   let root: HTMLDivElement;
@@ -54,6 +55,20 @@
   }
   function fly(m: Movement, from: {x: number; y: number}, to: {x: number; y: number}, delay: number, target: Element) {
     if (!root || !active) return;
+    if (m.action) {
+      const node = document.createElement('span');
+      node.className = 'action-cue';
+      node.textContent = t(`poker.${m.action === 'allin' ? 'allinBtn' : m.action === 'call' ? 'actionCall' : m.action}`);
+      root.append(node);
+      const anim = node.animate([
+        { transform: `translate(${to.x}px, ${to.y}px) translate(-50%, -50%) scale(.8)`, opacity: 0 },
+        { opacity: 1, offset: .2 },
+        { transform: `translate(${to.x}px, ${to.y - 24}px) translate(-50%, -50%) scale(1)`, opacity: 0 },
+      ], { duration: 1100, delay, fill: 'both', easing: 'ease-out' });
+      effects.add(anim);
+      void anim.finished.catch(() => undefined).then(() => { effects.delete(anim); node.remove(); });
+      return;
+    }
     if (m.pulse) {
       find(m.to)?.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(2)' }, { filter: 'brightness(1)' }], { duration: 400, delay });
       return;
@@ -161,6 +176,7 @@
   :global(.animation-arriving) { opacity: 0 !important; }
   :global(.animation-highlight) { outline: 3px solid var(--brass-soft, #e3c77f) !important; outline-offset: 2px; }
   .motion-layer { position: fixed; inset: 0; pointer-events: none; z-index: 100; overflow: hidden; }
+  .motion-layer :global(.action-cue) { position: fixed; left: 0; top: 0; white-space: nowrap; padding: 5px 10px; border: 1px solid var(--brass-soft); border-radius: 999px; background: var(--felt-950); color: var(--cream); font-weight: 800; box-shadow: 0 3px 12px #0009; }
   .motion-layer :global(.moving-card) { position: fixed; left: 0; top: 0; width: 32px; height: 46px; border: 2px solid #f8efd8; border-radius: 4px; box-shadow: 0 2px 6px #0008; background: repeating-linear-gradient(45deg,#b18c47 0 2px,#164535 2px 6px); }
   .motion-layer :global(.moving-card.face) { background-image: url('/cards/deck.webp'); background-size: 1300% 400%; background-repeat: no-repeat; background-color: white; }
   .motion-layer :global(.moving-coin) { position: fixed; left: 0; top: 0; min-width: 32px; height: 32px; padding: 0 4px; border-radius: 50%; border: 2px solid #ffe4a0; background: #a67419; box-shadow: 0 2px 7px #0009; color: white; display: grid; place-items: center; font-size: 11px; font-weight: 800; }

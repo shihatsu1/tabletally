@@ -24,10 +24,7 @@
   <nav class="row">
     <a class="grow brand" href="#/">TableTally</a>
     <button type="button" class="ghost tog" aria-pressed={fx.sound} onclick={() => setSound(!fx.sound)}>{t('nav.sound')}: {t(fx.sound ? 'nav.on' : 'nav.off')}</button>
-    <div role="group" aria-label={t('nav.language')} class="row">
-      <button type="button" class="ghost" aria-pressed={ui.lang === 'en'} onclick={() => setLang('en')}>English</button>
-      <button type="button" class="ghost" aria-pressed={ui.lang === 'tl'} onclick={() => setLang('tl')}>Filipino</button>
-    </div>
+
   </nav>
 
   {#if roomCode}

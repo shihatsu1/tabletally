@@ -61,7 +61,7 @@
 </script>
 
 <header class="hero">
-  <h1><img src="/brand/logo-lockup.webp" alt="TableTally" width="260" height="260" /></h1>
+  <h1>Gather around the table</h1>
   <p class="dim">{t('app.tagline')}</p>
 </header>
 
@@ -80,8 +80,8 @@
   <label for="room-name">{t('home.roomName')}</label>
   <input id="room-name" bind:value={roomName} maxlength="40" required />
 
-  <fieldset class="opts"><legend>{t('home.game')}</legend><div class="row wrap">
-    {#each gameList as g (g.id)}<button type="button" class="ghost" aria-pressed={gameId === g.id} onclick={() => (gameId = g.id)}>{t(`game.${g.id}`)}</button>{/each}
+  <fieldset class="game-picker"><legend>{t('home.game')}</legend><div class="game-grid">
+    {#each gameList as g (g.id)}<button type="button" class="game-choice" aria-pressed={gameId === g.id} onclick={() => (gameId = g.id)}><img src={`/brand/${g.id}.webp`} alt="" /><span>{t(`game.${g.id}`)}</span></button>{/each}
   </div></fieldset>
 
   <div class="row">
@@ -112,10 +112,9 @@
   </fieldset>
 
   {#if ui && setup}
-    <fieldset class="opts">
-      <legend>{t('home.options')}</legend>
+    <details class="opts"><summary>{t('home.options')}</summary>
       <ui.Setup {setup} {playerCount} onchange={(next: unknown) => (setup = next)} />
-    </fieldset>
+    </details>
   {/if}
 
   <label for="host-name">{t('home.yourName')}</label>
@@ -131,9 +130,16 @@
 
 
 <style>
+  .game-picker { border: 0; padding: 0; margin: 20px 0; min-width: 0; }
+  .game-picker legend { font-family: var(--font-display); font-size: var(--step-1); color: var(--accent); margin-bottom: 10px; }
+  .game-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .game-choice { padding: 0; overflow: hidden; text-align: left; background: var(--bg-deep); border: 2px solid var(--line); }
+  .game-choice[aria-pressed='true'] { border-color: var(--brass-soft); box-shadow: 0 0 0 2px var(--brass); }
+  .game-choice img { display: block; width: 100%; aspect-ratio: 1.5; object-fit: cover; }
+  .game-choice span { display: block; padding: 8px 10px; font-family: var(--font-display); }
+  summary { cursor: pointer; padding: 8px 0; }
   .hero { text-align: center; margin: 14px 0 6px; }
-  .hero h1 { margin: 0; line-height: 0; }
-  .hero img { width: min(64vw, 260px); height: auto; border-radius: 22px; }
+  .hero h1 { margin: 0; line-height: 1.1; }
   .hero p { margin: 10px auto 0; font-family: var(--font-display); font-variation-settings: 'SOFT' 100; font-weight: 500; font-style: normal; font-size: var(--step-1); line-height: 1.3; max-width: 26ch; color: var(--text); }
   .opts { border: 1px solid var(--line); border-radius: 12px; margin: 16px 0 0; padding: 4px 14px 14px; }
   .opts legend { font-size: .85rem; color: var(--text-dim); padding: 0 6px; }

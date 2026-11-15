@@ -2,7 +2,7 @@
   import { onMount, tick, type Snippet } from 'svelte';
   import type { RoomView } from '../../shared/protocol';
   import { fx, setSound } from '../lib/effects.svelte';
-  import { setLang, t, ui } from '../lib/i18n.svelte';
+  import { t } from '../lib/i18n.svelte';
   import { send, session } from '../lib/session.svelte';
   import Icon from './Icon.svelte';
   import PlayTable from './PlayTable.svelte';
@@ -94,10 +94,7 @@
         <section class="card">
           <div class="row">
             <button type="button" class="ghost grow" aria-pressed={fx.sound} onclick={() => setSound(!fx.sound)}>{t('nav.sound')}: {t(fx.sound ? 'nav.on' : 'nav.off')}</button>
-            <div role="group" aria-label={t('nav.language')} class="row">
-              <button type="button" class="ghost" aria-pressed={ui.lang === 'en'} onclick={() => setLang('en')}>English</button>
-              <button type="button" class="ghost" aria-pressed={ui.lang === 'tl'} onclick={() => setLang('tl')}>Filipino</button>
-            </div>
+>
             <a class="btn ghost" href="#/">{t('room.home')}</a>
           </div>
         </section>
@@ -135,7 +132,7 @@
     padding: calc(env(safe-area-inset-top) + 6px) 10px calc(env(safe-area-inset-bottom) + 8px);
   }
   @media (orientation: landscape) and (max-height: 600px) {
-    .screen { width: 100vw; gap: 2px; padding: 2px 8px; }
+    .screen { width: 100vw; gap: 2px; padding: 2px max(8px, env(safe-area-inset-right)) 2px max(8px, env(safe-area-inset-left)); }
     .base { gap: 2px; }
     header { min-height: 30px; }
     .play { padding-top: 2px; }
@@ -154,9 +151,12 @@
   .err { margin: 0; font-size: .8rem; }
   .play.offline { opacity: .55; filter: grayscale(.4); }
   .play { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; overflow: hidden; padding-top: 22px; }
-  .sheet { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; background: var(--bg, #0b2f25); padding: calc(env(safe-area-inset-top) + 6px) 10px 10px; }
+  .sheet { position: absolute; inset: 0; width: min(520px, 100%); margin: auto; z-index: 30; display: flex; flex-direction: column; background: var(--bg, #0b2f25); padding: calc(env(safe-area-inset-top) + 6px) 10px 10px; }
   .sheet-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px; }
-  .sheet-body { flex: 1; overflow-y: auto; display: grid; gap: 10px; align-content: start; }
+  .sheet-body { flex: 1; min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; }
+  .sheet-body :global(.row) { flex-wrap: wrap; min-width: 0; }
+  .sheet-body :global(.card) { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+  .sheet-body :global(input) { min-width: 0; }
   .prow { align-items: center; margin: 4px 0; }
   .rename { margin-top: 8px; }
 </style>
