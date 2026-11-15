@@ -198,7 +198,7 @@
     </div>
   {/if}
   <div class="status" class:mine={myTurn} aria-live="polite">
-    <span class="msg">{#if myTurn}<strong>{t('play.yourTurn')}</strong>{#if status} · {/if}{/if}{status}</span>
+    <span class="msg">{#if myTurn}<strong>{t('play.yourTurn')}</strong>{#if status}{' · '}{/if}{/if}{status}</span>
     {#if timer}<span class="turn-timer">{@render timer()}</span>{/if}
     <HowToPlay small title={t('play.howTo')} items={RULES.map((k) => t(k))} />
   </div>
@@ -344,7 +344,7 @@
   .dpile { position: relative; display: block; width: calc(var(--ps) + 16px); height: calc(var(--ps) * 1.4536); }
   .dpile .under { position: absolute; top: 0; left: calc(var(--k) * 8px); }
   .dtop { position: absolute; top: 0; left: 16px; padding: 0; min-height: 0; border: 0; background: none; border-radius: 6px; z-index: 3; }
-  .dtop.live { animation: stock-glow 1.4s ease-in-out infinite; }
+  .dtop.live { animation: stock-glow 1.4s var(--ease) 3; }
   .dtop.on { animation: none; transform: translateY(-6px); }
   .dtop.live :global(.card) { box-shadow: 0 0 0 3px var(--pos), 0 6px 14px rgba(0,0,0,.5); }
   .dcount { position: absolute; right: -10px; bottom: -8px; z-index: 5; min-width: 28px; min-height: 24px; padding: 1px 6px; border-radius: 999px; background: var(--bg-deep); border: 1px solid var(--line); font-size: .75rem; color: var(--accent); }
@@ -356,10 +356,10 @@
   .stock { position: relative; display: block; width: calc(var(--ps) + 8px); height: calc(var(--ps) * 1.4536 + 8px); padding: 0; min-height: 0; border: 0; background: none; border-radius: 6px; }
   .stock .layer { position: absolute; left: calc(var(--k) * 2px); top: calc(8px - var(--k) * 2px); }
   .stock .count { position: absolute; right: -8px; bottom: -6px; z-index: 5; min-width: 24px; padding: 1px 6px; border-radius: 999px; background: var(--bg-deep); border: 1px solid var(--line); font-size: .75rem; text-align: center; color: var(--accent); }
-  .stock.live { cursor: pointer; animation: stock-glow 1.4s ease-in-out infinite; }
+  .stock.live { cursor: pointer; animation: stock-glow 1.4s var(--ease) 3; }
   .stock.live .layer:last-of-type :global(.card) { box-shadow: 0 0 0 3px var(--brass-soft), 0 6px 14px rgba(0,0,0,.5); }
   .stock.live:active { transform: translateY(1px); }
-  @keyframes stock-glow { 50% { filter: drop-shadow(0 0 10px var(--brass)); } }
+  @keyframes stock-glow { 50% { filter: brightness(1.18); } }
   @media (prefers-reduced-motion: reduce) { .stock.live { animation: none; } }
   /* fills what is left of the table area; its height decides how big the meld cards can be */
   .melds { flex: 1 1 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 3px; }

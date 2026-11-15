@@ -50,7 +50,7 @@
     box-shadow: -1px 2px 5px rgba(0,0,0,.4); cursor: default; color: #1d1608;
   }
   button.card { cursor: pointer; }
-  .hint { border-color: var(--pos); box-shadow: 0 0 0 3px var(--pos), 0 0 14px color-mix(in srgb, var(--pos) 70%, transparent); }
+  .hint { border-color: var(--pos); box-shadow: 0 0 0 3px var(--pos); }
   .selected { border-color: var(--brass); box-shadow: 0 0 0 3px var(--brass), 0 6px 14px rgba(0,0,0,.5); }
   .idx { position: absolute; left: 6%; top: 3%; display: flex; flex-direction: column; align-items: center; line-height: .95; font-family: var(--font-display); }
   .idx b { font-size: calc(var(--cw) * .24); }

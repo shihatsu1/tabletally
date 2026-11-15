@@ -50,7 +50,7 @@
 
 <div class="pd">
   <div class="status" class:mine aria-live="polite">
-    <span class="msg">{#if mine && !problem}<strong>{t('play.yourTurn')}</strong>{#if status} · {/if}{/if}{status}</span>
+    <span class="msg">{#if mine && !problem}<strong>{t('play.yourTurn')}</strong>{#if status}{' · '}{/if}{/if}{status}</span>
     <HowToPlay small title={t('play.howTo')} items={RULES.map((k) => t(k))} />
   </div>
 

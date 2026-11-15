@@ -41,6 +41,7 @@
   --step-4: 2.441rem;
   /* the sign-painter's drop: a hard offset in the felt's darkest green, never a blur */
   --sign-shadow: 2px 2px 0 var(--felt-950);
+  --ease: cubic-bezier(.22, 1, .36, 1);
   color-scheme: dark;
 }
 
@@ -95,12 +96,13 @@ button, a.btn {
   min-height: 48px;
   cursor: pointer;
 }
-button, a.btn { font-weight: 560; letter-spacing: .005em; }
+button, a.btn { font-weight: 560; letter-spacing: .005em; transition: background-color .15s var(--ease), border-color .15s var(--ease), transform .15s var(--ease); }
+button:active:not(:disabled), a.btn:active { transform: scale(.98); }
 a.btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 button:hover, a.btn:hover { border-color: var(--brass); }
 /* ghost first, so a selected chip (ghost + primary) always gets the readable primary pair */
 button.ghost, a.btn.ghost { background: transparent; }
-button.primary, a.btn.primary { background: linear-gradient(180deg, var(--brass-soft), var(--brass)); color: #1d1608; border-color: var(--brass); font-weight: 680; }
+button.primary, a.btn.primary { background: var(--brass-soft); box-shadow: inset 0 1px 0 rgba(255,255,255,.35); color: #1d1608; border-color: var(--brass); font-weight: 680; }
 button:disabled { opacity: .5; cursor: not-allowed; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid var(--brass-soft); outline-offset: 2px; }
 input, select {

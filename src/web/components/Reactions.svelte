@@ -20,7 +20,7 @@
 </div>
 
 <style>
-  .bar { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 4px 0 0; }
+  .bar { display: grid; grid-template-columns: repeat(4, 44px); gap: 8px; justify-content: center; margin: 4px 0 0; }
   .e { min-height: 44px; min-width: 44px; padding: 0; font-size: 1.4rem; border-radius: 50%; }
   .e:active:not(:disabled) { transform: scale(1.2); }
 </style>

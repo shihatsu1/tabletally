@@ -122,15 +122,15 @@
 
 <style>
   .pt { position: relative; display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
-  .timer { position: absolute; top: 0; right: 0; z-index: 4; flex: none; width: 36px; height: 36px; display: grid; place-items: center; color: var(--accent); border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--bg) 85%, transparent) 55%, transparent 72%); filter: drop-shadow(0 0 6px color-mix(in srgb, currentColor 45%, transparent)); }
+  .timer { position: absolute; top: 0; right: 0; z-index: 4; flex: none; width: 36px; height: 36px; display: grid; place-items: center; color: var(--accent); border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--bg) 85%, transparent) 55%, transparent 72%); }
   .timer svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); fill: none; stroke-width: 6; }
   .timer-track { stroke: currentColor; opacity: .2; }
   .timer-ring { stroke: currentColor; stroke-linecap: round; transition: stroke-dashoffset 100ms linear, stroke 300ms; }
   .timer-number { font-family: var(--font-display, var(--font-ui)); font-size: .75rem; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
   .timer.warn { color: var(--warn); }
-  .timer.low { color: var(--neg); animation: timer-pulse 1s ease-in-out infinite; }
+  .timer.low { color: var(--neg); animation: timer-pulse 1s var(--ease) 5; }
   .timer.low .timer-number { color: currentColor; }
-  @keyframes timer-pulse { 50% { transform: scale(1.08); filter: drop-shadow(0 0 12px currentColor); } }
+  @keyframes timer-pulse { 50% { transform: scale(1.08); } }
   @media (max-height: 700px) {
     .timer { width: 36px; height: 36px; }
     .timer-number { font-size: .75rem; }
@@ -150,7 +150,7 @@
   .turn { position: relative; display: grid; place-items: center; min-height: 44px; padding: 0 4px; border: 1px solid var(--line); margin-left: -1px; font-size: .85rem; font-weight: 600; text-align: center; cursor: pointer; color: var(--text); }
   .turn:first-of-type { margin-left: 0; border-radius: 12px 0 0 12px; }
   .turn:last-of-type { border-radius: 0 12px 12px 0; }
-  .turn.on { z-index: 1; background: linear-gradient(180deg, var(--brass-soft), var(--brass)); border-color: var(--brass); color: #1d1608; }
+  .turn.on { z-index: 1; background: var(--brass-soft); border-color: var(--brass); color: #1d1608; }
   .turn input { position: absolute; opacity: 0; inset: 0; margin: 0; width: 100%; height: 100%; min-height: 0; cursor: pointer; }
   .turn:has(input:focus-visible) { outline: 3px solid var(--brass-soft); outline-offset: 2px; z-index: 2; }
   .f { display: flex; flex-direction: column; gap: 2px; font-size: .75rem; margin: 0; }

@@ -54,7 +54,7 @@
 <svelte:window bind:innerHeight={winH} />
 <div class="pk">
   <div class="status" class:mine={myTurn} aria-live="polite">
-    <span class="msg">{#if myTurn}<strong>{t('play.yourTurn')}</strong>{#if status} · {/if}{/if}{status}</span>
+    <span class="msg">{#if myTurn}<strong>{t('play.yourTurn')}</strong>{#if status}{' · '}{/if}{/if}{status}</span>
     <HowToPlay small title={t('play.howTo')} items={RULES.map((k) => t(k))} />
   </div>
 

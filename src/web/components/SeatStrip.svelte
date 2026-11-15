@@ -77,7 +77,7 @@
   .seat.mine { border-color: var(--brass); }
   .seat.out { border-style: dashed; }
   @media (max-width: 520px) { .strip.two { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  .seat.turn { box-shadow: 0 0 0 2px var(--brass-soft, var(--brass)); animation: glow 1.4s ease-in-out infinite; }
+  .seat.turn { box-shadow: 0 0 0 2px var(--brass-soft, var(--brass)); animation: glow 1.4s var(--ease) 3; }
   .top { grid-area: top; display: flex; align-items: center; gap: 3px; min-width: 0; }
   .crown { color: var(--brass-soft); display: inline-flex; }
   .name { flex: 1; min-width: 0; font-size: .78rem; font-weight: 650; letter-spacing: .005em; color: var(--cream, #f3e9d2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
