@@ -44,6 +44,8 @@ export interface PlayRec {
   seed: number;
   /** Moves made this hand; mixed into each computer's seed so every move is reproducible. */
   moves: number;
+  /** Bounded server-only states used to describe consecutive moves to each viewer. */
+  animationHistory?: { revision: number; before: unknown; after: unknown }[];
   /** Set when the finished hand could not be added to the ledger (for example a running total would pass the limit). */
   unscored?: boolean;
 }
@@ -541,7 +543,7 @@ function playMove(s: RoomState, pid: string, move: unknown, now: number): Result
     console.error(`apply threw for ${s.gameId} in room ${s.code}`, e);
     return fail('bad_move', 'That move could not be played.');
   }
-  let state: RoomState = { ...s, play: { ...s.play, state: next, moves: s.play.moves + 1 }, lastActivityAt: now };
+  let state: RoomState = { ...s, play: { ...s.play, state: next, moves: s.play.moves + 1, animationHistory: [...(s.play.animationHistory ?? []), { revision: s.play.moves + 1, before: s.play.state, after: next }].slice(-8) }, lastActivityAt: now };
 
   state = recordFinishedHand(s, state, now);
   return { ok: true, value: schedule(state, now) };
@@ -606,6 +608,8 @@ export function playEnvelope(s: RoomState, playerId: string | null): PlayEnvelop
   const who = engine.toAct(s.play.state);
   return {
     view: engine.viewFor(s.play.state, playerId),
+    revision: s.play.moves,
+    transitions: (s.play.animationHistory ?? []).map((transition) => ({ revision: transition.revision, before: engine.viewFor(transition.before, playerId), after: engine.viewFor(transition.after, playerId) })),
     stake: s.play.stake,
     handNo: s.play.handNo,
     toAct: who,

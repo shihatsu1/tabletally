@@ -10,3 +10,11 @@ export function potDealsSince(rounds: readonly PublicRound[]): number {
   }
   return n;
 }
+
+/** The previous winner can collect the pot unless that hand already collected it. */
+export function potContender(rounds: readonly PublicRound[]): string | null {
+  const last = rounds.at(-1);
+  if (!last) return null;
+  const input = last.input as TongItsInput;
+  return (input.potDeals ?? 0) > 0 ? null : input.winner;
+}

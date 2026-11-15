@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { arrangementProblem, eval3, eval5, type Arrangement, type PsMove, type PsView } from '../../../games/pusoy/engine';
   import { pairFor } from '../../../games/pusoy';
   import { fmt } from '../../lib/format';
@@ -77,6 +78,19 @@
   };
   const labelsOf = (a: Record<Row, readonly number[]>): string[] => ROWS.map((r) => `${t(`pusoy.play.row.${r}`)} · ${kindOf(a, r)}`);
 
+  function animateRearrangement(update: () => void) {
+    const before = new Map([...document.querySelectorAll<HTMLElement>('.ps [data-held-card]')].map(el => [el.dataset.heldCard, el.getBoundingClientRect()]));
+    update();
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    void tick().then(() => {
+      for (const el of document.querySelectorAll<HTMLElement>('.ps [data-held-card]')) {
+        const old = before.get(el.dataset.heldCard);
+        if (!old) continue;
+        const now = el.getBoundingClientRect();
+        if (old.left !== now.left || old.top !== now.top) el.animate([{ transform: `translate(${old.left - now.left}px, ${old.top - now.top}px)` }, { transform: 'translate(0, 0)' }], { duration: 300, easing: 'ease-out' });
+      }
+    });
+  }
   function pick(card: number) {
     const i = layout.indexOf(card);
     if (i < 0) return;
@@ -86,7 +100,7 @@
       const j = layout.indexOf(sel);
       const next = [...layout];
       [next[i], next[j]] = [next[j] as number, next[i] as number];
-      layout = next;
+      animateRearrangement(() => (layout = next));
       sel = null;
       touched = true;
       save(view.hand, next);
@@ -96,7 +110,7 @@
   function swapRows() {
     if (layout.length !== 13) return;
     const next = [...rows.front, ...rows.back, ...rows.middle];
-    layout = next;
+    animateRearrangement(() => (layout = next));
     sel = null;
     touched = true;
     save(view.hand, next);

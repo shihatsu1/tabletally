@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { RoomView } from '../../../shared/protocol';
   import type { TongItsSetup } from '../../../games/tong-its';
-  import { potDealsSince } from './pot';
+  import { potContender, potDealsSince } from './pot';
   import { canSapaw, keepsDiscardMeld, meldKind, meldsContaining, type TiMove, type TiView } from '../../../games/tong-its/engine';
   import { RANK_LABELS, bestDeadwood, organize, rankOf, suitOf } from '../../../games/tong-its/hand';
   import { t } from '../../lib/i18n.svelte';
@@ -28,6 +28,8 @@
     const chips = (potDealsSince(room.rounds) + 1) * ante * view.players.length;
     return { chips, value: chips * stake, unit: room.unit };
   });
+
+  const contender = $derived(room ? potContender(room.rounds) : null);
 
   let picked = $state<number[]>([]);
   // Drop any selection that is no longer in the hand (after a move or a new deal).
@@ -230,10 +232,11 @@
         {:else}<span class="dim">—</span>{/if}
       </span>
       {#if pot}
-        <span class="potbox" role="img" aria-label={t('tong.play.potIs', { n: pot.value, unit: pot.unit, chips: pot.chips })}>
+        <span class="potbox" role="img" aria-label={`${t('tong.play.potIs', { n: pot.value, unit: pot.unit, chips: pot.chips })}. ${contender ? t('tong.streak', { name: nameOf(contender) }) : t('tong.noContender')}`}>
           <span class="dim small">{t('tong.potTitle')}</span>
           <strong class="potamt">{pot.value}</strong>
           <span class="potsub">{pot.unit} · {t('tong.play.potChips', { n: pot.chips })}</span>
+          <span class="potsub">{contender ? t('tong.streak', { name: nameOf(contender) }) : t('tong.noContender')}</span>
         </span>
       {/if}
     </div>

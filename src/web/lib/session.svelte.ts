@@ -47,6 +47,9 @@ function connect(): void {
   socket.onmessage = (e: MessageEvent<string>) => {
     const msg = JSON.parse(e.data) as ServerMessage;
     if (msg.t === 'state') {
+      if (session.status === 'live' && session.room?.code === msg.room.code && msg.play) {
+        window.dispatchEvent(new CustomEvent('tt:play-update', { detail: { before: session.play, after: msg.play, beforeRoom: session.room, room: msg.room } }));
+      }
       session.room = msg.room;
       session.play = msg.play;
       session.you = msg.you;
@@ -71,6 +74,7 @@ function connect(): void {
   socket.onclose = (e) => {
     clearInterval(pinger);
     if (!wanted || ws !== socket) return;
+    window.dispatchEvent(new Event('tt:animation-reset'));
     if (e.code === 4004) {
       session.status = 'closed';
       return;

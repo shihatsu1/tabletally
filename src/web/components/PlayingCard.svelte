@@ -36,9 +36,9 @@
 {/snippet}
 
 {#if onclick}
-  <button type="button" class="card" class:selected class:hint style="--cw: {size}px" aria-pressed={selected} aria-label={label} {onclick}>{@render face()}</button>
+  <button type="button" data-animation-card={card} class="card" class:selected class:hint style="--cw: {size}px" aria-pressed={selected} aria-label={label} {onclick}>{@render face()}</button>
 {:else}
-  <span class="card" class:selected class:hint style="--cw: {size}px" role="img" aria-label={label}>{@render face()}</span>
+  <span data-animation-card={card} class="card" class:selected class:hint style="--cw: {size}px" role="img" aria-label={label}>{@render face()}</span>
 {/if}
 
 <style>

@@ -216,6 +216,23 @@ describe('playing a hand', () => {
     expect(JSON.stringify(buildView(d, new Set(['p1'])))).not.toContain('hands');
   });
 
+  it('filters recent animation transitions for each viewer', () => {
+    let d = dealt(3);
+    const actor = playEnvelope(d, null)!.toAct!;
+    const card = (d.play!.state as { mustInclude: number }).mustInclude;
+    d = ok(applyMessage(d, { playerId: actor, isHost: false }, { t: 'move', move: { t: 'play', cards: [card] } }, T0 + 30));
+    const other = ['p1', 'p2', 'p3', 'p4'].find(id => id !== actor)!;
+    const own = playEnvelope(d, actor)!;
+    const observed = playEnvelope(d, other)!;
+    const watcher = playEnvelope(d, null)!;
+    expect(own.revision).toBe(1);
+    expect(own.transitions).toHaveLength(1);
+    expect((own.transitions![0]!.before as PdView).hand).toHaveLength(13);
+    expect((observed.transitions![0]!.before as PdView).hand).toEqual((observed.view as PdView).hand);
+    expect((watcher.transitions![0]!.before as PdView).hand).toEqual([]);
+    expect((watcher.transitions![0]!.before as PdView).hands).toBeUndefined();
+  });
+
   it('rejects moves out of turn and illegal moves, and accepts a legal one from the human', () => {
     let d = dealt(3);
     const toAct = playEnvelope(d, 'p1')!.toAct!;

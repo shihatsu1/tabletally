@@ -8,6 +8,7 @@
   import PlayTable from './PlayTable.svelte';
   import Reactions from './Reactions.svelte';
   import SeatStrip from './SeatStrip.svelte';
+  import ActionAnimations from './ActionAnimations.svelte';
 
   interface Props {
     room: RoomView;
@@ -66,6 +67,7 @@
 <svelte:window onkeydown={(e) => e.key === 'Escape' && menuOpen && closeMenu()} />
 <div class="backdrop"></div>
 <div class="screen">
+  <ActionAnimations />
   <div class="base" inert={menuOpen}>
   <header>
     <h1 class="title"><strong>{room.name}</strong> <small class="dim">{t(`game.${room.gameId}`)} · {room.code}</small></h1>

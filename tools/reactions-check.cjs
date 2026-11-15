@@ -1,0 +1,31 @@
+const { chromium } = require(process.cwd() + '/node_modules/playwright-core');
+const { randomBytes } = require('node:crypto');
+(async () => {
+  const token = () => randomBytes(16).toString('hex');
+  const host = token(), guest = token();
+  const response = await fetch('http://localhost:8787/api/rooms', {method:'POST',body:JSON.stringify({token:host,name:'Emoji',gameId:'tong-its',playerCount:3,unit:'pts',hostName:'Alice',bots:['easy']})});
+  if (!response.ok) throw Error(await response.text());
+  const {code} = await response.json();
+  const browser = await chromium.launch({channel:'chrome',headless:true});
+  async function phone(t) { const ctx = await browser.newContext({viewport:{width:390,height:844}}); await ctx.addInitScript(v => localStorage.setItem('tt.token',v),t); const p=await ctx.newPage(); p.on('websocket', ws => ws.on('framereceived', f => {if(f.payload.includes('react')) console.log(t===host?'host frame':'guest frame', f.payload)})); await p.goto(`http://localhost:8787/#/r/${code}`); return p; }
+  const a=await phone(host), b=await phone(guest);
+  await b.getByLabel(/Your name/).fill('Bob'); await b.getByRole('button',{name:/Sit down/}).click();
+  await a.getByRole('button',{name:'Reactions'}).waitFor();
+  console.log('alice/guest ready');
+  await a.getByRole('button',{name:'Reactions'}).click();
+  await a.getByRole('button',{name:'👍'}).click();
+  await b.waitForTimeout(1300);
+  console.log('guest count', await b.locator('.seat .react').count());
+  console.log('guest bounds', await b.locator('.seat .react').evaluateAll(els=>els.map(e=>{let r=e.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,visible:getComputedStyle(e).visibility,opacity:getComputedStyle(e).opacity, topmost:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.outerHTML.slice(0,160)}})));
+  const position = await b.locator('.seat .react').evaluate(e => ({ emoji: e.getBoundingClientRect().top, seat: e.parentElement.getBoundingClientRect().bottom }));
+  if (position.emoji < position.seat) throw Error('reaction is above the seat and overlaps the header');
+  await a.getByRole('button', {name:/^Deal/}).click();
+  await b.locator('.ti').waitFor();
+  await b.getByRole('button', {name:'Reactions'}).click();
+  await b.getByRole('button', {name:'👍'}).click();
+  await a.locator('[data-animation-seat="p3"] .react').waitFor({ timeout: 3000 });
+  const received = await a.locator('[data-animation-seat="p3"] .react').textContent();
+  if (received !== '👍') throw Error('reaction from second player not visible');
+  console.log('PASS both players receive visible reactions during play');
+  await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

@@ -91,6 +91,9 @@ export interface LobbyInfo {
 
 /** The hand in progress as ONE viewer may see it (their own cards only). Null when no hand has been dealt. */
 export interface PlayEnvelope {
+  /** Recent accepted transitions, filtered for this viewer. Revision is scoped to the hand. */
+  revision?: number;
+  transitions?: { revision: number; before: unknown; after: unknown }[];
   view: unknown;
   stake: number;
   handNo: number;

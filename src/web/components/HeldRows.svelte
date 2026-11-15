@@ -46,7 +46,7 @@
     {#each rows as row, ri (ri)}
       {@const y = layout.top0 + ri * layout.vstep}
       {#each row as c, i (c)}
-        <span class="slot" style="left: {i * layout.step}px; top: {y}px; z-index: {ri * 20 + i}">
+        <span class="slot" data-held-card={c} style="left: {i * layout.step}px; top: {y}px; z-index: {ri * 20 + i}">
           <PlayingCard card={c} size={layout.cw} selected={selected === c} onclick={onpick ? () => onpick(c) : undefined} />
         </span>
       {/each}

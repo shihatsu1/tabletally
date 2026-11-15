@@ -7,6 +7,7 @@
   import { session } from '../lib/session.svelte';
   import AnimatedNumber from './AnimatedNumber.svelte';
   import Icon from './Icon.svelte';
+  import { potContender } from '../games/tong-its/pot';
 
   let { room, youId }: { room: RoomView; youId: string | null } = $props();
 
@@ -19,6 +20,8 @@
     const tied = totals.filter((x) => x.v === top);
     return top > 0 && tied.length === 1 ? tied[0]!.id : null;
   });
+
+  const crown = $derived(room.gameId === 'tong-its' ? potContender(room.rounds) : leader);
 
   // After a hand is recorded, show each seat's gain or loss for a moment.
   let deltas = $state<Record<string, number>>({});
@@ -42,10 +45,10 @@
   {#each room.players as p (p.id)}
     {@const total = room.totals[p.id] ?? 0}
     {@const info = view ? gameUi?.seat?.(view, p.id, t) ?? null : null}
-    <div class="seat" class:turn={pending.has(p.id)} class:mine={p.id === youId} class:out={info?.out} role="listitem"
-      aria-label={`${p.name}${p.id === youId ? `, ${t('room.you')}` : ''}: ${fmt(total)} ${room.unit}${info?.cards !== undefined ? `, ${t('play.cardsLeft', { n: info.cards })}` : ''}${info?.text ? `, ${info.text}` : ''}`}>
+    <div class="seat" data-animation-seat={p.id} class:turn={pending.has(p.id)} class:mine={p.id === youId} class:out={info?.out} role="listitem"
+      aria-label={`${p.name}${p.id === youId ? `, ${t('room.you')}` : ''}: ${fmt(total)} ${room.unit}${info?.cards !== undefined ? `, ${t('play.cardsLeft', { n: info.cards })}` : ''}${info?.text ? `, ${info.text}` : ''}${room.gameId === 'tong-its' && crown === p.id ? `, ${t('tong.streak', { name: p.name })}` : ''}`}>
       <span class="top">
-        {#if leader === p.id}<span class="crown"><Icon name="crown" size={12} /></span>{/if}
+        {#if crown === p.id}<span class="crown" title={room.gameId === 'tong-its' ? t('tong.streak', { name: p.name }) : undefined} aria-label={room.gameId === 'tong-its' ? t('tong.streak', { name: p.name }) : undefined}><Icon name="crown" size={12} /></span>{/if}
         <span class="name">{p.name}</span>
         {#if info?.dealer}<span class="dealer" title={t('poker.dealer')}>D</span>{/if}
         <span class="dot" class:on={p.connected}></span>
@@ -69,7 +72,7 @@
 </div>
 
 <style>
-  .strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
+  .strip { position: relative; z-index: 6; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
   .seat { position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'top top' 'live total'; align-items: center; column-gap: 4px; padding: 4px 6px; border-radius: 10px; background: rgba(5, 30, 23, .9); border: 1px solid color-mix(in srgb, var(--brass) 40%, transparent); min-width: 0; min-height: 50px; }
   .seat.mine { border-color: var(--brass); }
   .seat.out { opacity: .55; }
@@ -93,9 +96,9 @@
   .delta { position: absolute; left: 50%; top: -14px; transform: translateX(-50%); font-weight: 800; font-size: 1rem; text-shadow: 0 2px 6px rgba(0,0,0,.8); animation: rise 3.5s ease-out forwards; pointer-events: none; z-index: 3; }
   .delta.pos { color: var(--mint, #6fd49a); }
   .delta.neg { color: #ff9a78; }
-  .react { position: absolute; left: 50%; top: -22px; font-size: 1.6rem; pointer-events: none; animation: bubble 2.4s ease-out forwards; z-index: 4; }
+  .react { position: absolute; left: 50%; top: calc(100% + 4px); transform: translateX(-50%); display: grid; place-items: center; min-width: 38px; min-height: 38px; padding: 2px; border: 1px solid var(--brass-soft, #e3c77f); border-radius: 50%; background: var(--felt-800, #0b3b2e); box-shadow: 0 3px 8px #0009; font-size: 1.6rem; pointer-events: none; animation: bubble 2.4s ease-out forwards; z-index: 4; }
   @keyframes glow { 0%, 100% { box-shadow: 0 0 0 2px rgba(227,199,127,.9); } 50% { box-shadow: 0 0 0 5px rgba(227,199,127,0); } }
   @keyframes rise { 0% { opacity: 0; transform: translate(-50%, 8px); } 10% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -10px); } }
-  @keyframes bubble { 0% { transform: translate(-50%, 8px) scale(.4); opacity: 0; } 12% { transform: translate(-50%, -6px) scale(1.2); opacity: 1; } 80% { opacity: 1; } 100% { transform: translate(-50%, -26px); opacity: 0; } }
+  @keyframes bubble { 0% { transform: translate(-50%, -4px) scale(.5); opacity: 0; } 12% { transform: translate(-50%, 2px) scale(1.1); opacity: 1; } 80% { opacity: 1; } 100% { transform: translate(-50%, 10px); opacity: 0; } }
   @media (prefers-reduced-motion: reduce) { .seat.turn, .delta, .react { animation: none; } }
 </style>
