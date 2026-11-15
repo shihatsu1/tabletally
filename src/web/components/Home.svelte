@@ -1,4 +1,5 @@
 <script lang="ts">
+  import QrScanner from './QrScanner.svelte';
   import type { BotLevel } from '../../core/play';
   import { games } from '../../games';
   import { getEngine } from '../../games/engines';
@@ -19,6 +20,7 @@
   let busy = $state(false);
   let error = $state('');
   let joinCode = $state('');
+  let scanning = $state(false);
   let botLevels = $state<BotLevel[]>([]);
 
   const counts = $derived(getEngine(gameId)?.playerCounts ?? games[gameId]?.playerCounts ?? [4]);
@@ -72,6 +74,8 @@
     <input id="code" bind:value={joinCode} maxlength={ROOM_CODE_LENGTH} autocapitalize="characters" autocomplete="off" spellcheck="false" class="code" />
     <button type="submit" class="primary" disabled={!joinOk}>{t('home.go')}</button>
   </div>
+  <button type="button" class="ghost scan" aria-expanded={scanning} onclick={() => (scanning = !scanning)}>Scan QR code</button>
+  {#if scanning}<QrScanner onclose={() => (scanning = false)} onscan={(code) => { scanning = false; location.hash = `#/r/${code}`; }} />{/if}
 </form>
 
 <form class="card" onsubmit={create}>
@@ -130,6 +134,7 @@
 
 
 <style>
+  .scan { width: 100%; margin-top: 10px; }
   .game-picker { border: 0; padding: 0; margin: 20px 0; min-width: 0; }
   .game-picker legend { font-family: var(--font-display); font-size: var(--step-1); color: var(--accent); margin-bottom: 10px; }
   .game-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
