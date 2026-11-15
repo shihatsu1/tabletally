@@ -260,8 +260,8 @@
 
   {#if view.done && view.hands}
     <div class="reveal">
-      {#each view.players.filter((id) => id !== me && (view.hands?.[id]?.length ?? 0) > 0) as id (id)}
-        <div class="rv"><span class="dim small who">{nameOf(id)}</span><div class="rvfan"><CardFan cards={[...(view.hands[id] ?? [])].sort(byRank)} spread={0} maxW={40} label={nameOf(id)} /></div></div>
+      {#each view.players.filter((id) => id !== me) as id (id)}
+        <div class="rv"><span class="dim small who">{nameOf(id)}</span><div class="rvfan"><CardFan cards={[...(view.hands[id] ?? [])].sort(byRank)} spread={0} maxW={40} label={nameOf(id)} /></div><span class="card-count">{t('play.cardsLeft', { n: view.hands[id]?.length ?? 0 })}</span></div>
       {/each}
     </div>
   {/if}
@@ -280,7 +280,7 @@
         {#if points !== null}<span class="points" aria-live="polite">{t('tong.play.points', { n: points })}</span>{/if}
       </div>
     {/if}
-    <div class="hand"><CardFan cards={held.cards} gaps={held.gaps} selected={picked} hinted={useWith} onpick={toggle} maxW={124} label={t('play.yourHand')} /></div>
+    <div class="hand"><CardFan cards={held.cards} gaps={held.gaps} selected={picked} hinted={useWith} onpick={toggle} maxW={124} label={t('play.yourHand')} />{#if view.done}<span class="card-count own-count">{t('play.cardsLeft', { n: view.hand.length })}</span>{/if}</div>
 
     {#if myTurn && view.phase === 'draw' && choosing}
       <div class="row">
@@ -311,7 +311,7 @@
   .status .msg { flex: 1; min-width: 0; }
   .ti { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1 1 auto; max-height: 100%; }
   .row, .status { flex: none; }
-  .hand { flex: 1 1 0; min-height: 120px; max-height: 340px; }
+  .hand { position: relative; flex: 1 1 0; min-height: 120px; max-height: 340px; }
   .helper { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
   .chip { min-height: 40px; padding: 2px 4px; border-radius: 999px; font-size: .78rem; display: inline-flex; gap: 2px; align-items: center; border: 1px solid var(--line); background: color-mix(in srgb, var(--brass) 12%, transparent); }
   .cbtn { width: 32px; min-height: 32px; height: 32px; padding: 0; border-radius: 50%; border: 0; background: none; color: var(--text-dim); font-size: .95rem; }
@@ -367,7 +367,9 @@
   .reveal { display: flex; flex-direction: column; gap: 2px; }
   .rv { display: flex; align-items: center; gap: 6px; }
   .who { width: 64px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .rvfan { flex: 1; height: 58px; }
+  .rvfan { flex: 1; min-width: 0; height: 58px; }
+  .card-count { flex: none; color: var(--accent); font-size: .75rem; white-space: nowrap; }
+  .own-count { position: absolute; right: 0; top: 0; }
   .row { display: flex; gap: 6px; }
   .row button { flex: 1; padding-inline: .4em; font-size: .9rem; }
 </style>
